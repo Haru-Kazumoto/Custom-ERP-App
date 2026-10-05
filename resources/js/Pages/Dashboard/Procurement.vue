@@ -7,6 +7,13 @@ import CalendarWidget from "@/Components/Feature/Dashboard/CalendarWidget.vue";
 import TaskList from "@/Components/Feature/Dashboard/TaskList.vue";
 import RecentPurchaseOrderDocuments from "@/Components/Feature/Dashboard/RecentPurchaseOrderDocuments.vue";
 
+const props = defineProps({
+    purchase_orders: {
+        type: Array,
+        default: []
+    }
+});
+
 function onDate(d: Date) {
     // hook untuk filter data dashboard berdasarkan tanggal,
     // mis. router.reload({ data: { date: d.toISOString().slice(0,10) } })
@@ -18,7 +25,7 @@ function onDate(d: Date) {
     <AppLayout>
         <div class="space-y-4 lg:space-y-6">
             <!-- Stat row -->
-            <div class="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <div class="grid grid-cols-2 gap-6 xl:grid-cols-3">
                 <StatCard
                     label="Open Requests"
                     value="7"
@@ -40,13 +47,7 @@ function onDate(d: Date) {
                     :delta="4.1"
                     tone="green"
                 />
-                <StatCard
-                    label="Attendance"
-                    value="88%"
-                    icon="UserCheck"
-                    :delta="2.3"
-                    tone="green"
-                />
+
             </div>
 
             <!-- Konten + kalender -->
@@ -59,7 +60,7 @@ function onDate(d: Date) {
                 <div class="space-y-4 lg:space-y-6">
                     <CalendarWidget tone="green" @select="onDate" />
                     <!-- <TaskList tone="green" /> -->
-                    
+
                 </div>
             </div>
         </div>

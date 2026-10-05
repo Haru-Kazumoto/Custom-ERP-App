@@ -68,7 +68,7 @@ class FindPurchaseOrderQuery
         $decode_details = json_decode((string) $transaction->details, true);
 
         $transaction->details = collect($decode_details ?: [])
-            ->filter(fn ($detail) => is_array($detail) && isset($detail['name']))
+            ->filter(fn($detail) => is_array($detail) && isset($detail['name']))
             ->mapWithKeys(function ($detail) {
                 return [
                     strtolower(str_replace(' ', '_', $detail['name'])) => $detail['value'],

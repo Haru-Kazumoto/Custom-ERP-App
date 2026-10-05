@@ -4,6 +4,7 @@ namespace App\Modules\Dashboard\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Modules\Finance\Controllers\FinanceDashboardController;
+use App\Modules\PurchaseOrder\Queries\GetTenLatestPurchaseOrderQueries;
 use App\Modules\Roles\Queries\GetOneRoleFromUserQuery;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Attributes\Controllers\Middleware;
@@ -13,6 +14,10 @@ use Inertia\Response;
 #[Middleware('auth')]
 class DashboardController extends Controller
 {
+    public function __construct(
+        private GetTenLatestPurchaseOrderQueries $get_latest_purchase_orders
+    ) {}
+
     private function renderSalesDashboard(): Response
     {
         return Inertia::render('Dashboard/Sales');
@@ -25,7 +30,9 @@ class DashboardController extends Controller
 
     private function renderProcurementDashboard(): Response
     {
-        return Inertia::render('Dashboard/Procurement');
+        return Inertia::render('Dashboard/Procurement', [
+            'purchase_orders' => $this->get_latest_purchase_orders->execute()
+        ]);
     }
 
     private function renderBusinessDevelopmentDashboard(): Response
