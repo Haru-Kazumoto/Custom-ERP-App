@@ -5,7 +5,6 @@ namespace App\Modules\PurchaseOrder\Workflows;
 use App\Modules\PurchaseOrder\Actions\CreatePurchaseOrderAction;
 use App\Modules\PurchaseOrder\Actions\GeneratePurchaseOrderApprovalsAction;
 use App\Modules\PurchaseOrder\DTOs\CreatePurchaseOrderDTO;
-use App\Modules\PurchaseOrder\Repositories\PurchaseOrderRepository;
 use App\Modules\TradePromo\Actions\DecrementQuotaTradePromoAction;
 use Illuminate\Support\Facades\DB;
 
@@ -24,7 +23,7 @@ class CreatePurchaseOrderWorkflow
 
             // Decrementing the trade promo if some item using it
             collect($dto->items)->each(function ($item) {
-                if($item->trade_promo_id) {
+                if ($item->trade_promo_id) {
                     $this->decrement_trade_promo->execute($item->trade_promo_id, $item->quantity);
                 }
             });

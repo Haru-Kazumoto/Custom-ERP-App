@@ -4,13 +4,15 @@ namespace App\Modules\PurchaseOrder\DTOs;
 
 class PurchaseOrderItemDTO
 {
+    /**
+     * @param  float  $unit_price  Harga satuan BRUTO (sudah termasuk PPN).
+     *                             `base_price` dan `total_price` dihitung dari
+     *                             angka ini oleh `PurchaseOrderCalculator`.
+     */
     public function __construct(
         public readonly int $product_id,
-        public readonly string $unit,
         public readonly int $quantity,
-        public readonly float $amount,
-        public readonly bool $use_tax,
+        public readonly float $unit_price,
         public readonly ?int $trade_promo_id,
-        public readonly float $total_price,
     ) {}
 }

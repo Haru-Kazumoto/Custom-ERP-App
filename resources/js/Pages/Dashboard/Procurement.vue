@@ -24,37 +24,41 @@ function onDate(d: Date) {
                     value="7"
                     icon="ScrollText"
                     :delta="-3.0"
+                    tone="green"
                 />
                 <StatCard
                     label="Total Revenue"
                     value="$48.2k"
                     icon="FileText"
                     :delta="12.5"
+                    tone="green"
                 />
                 <StatCard
                     label="Active Projects"
                     value="24"
                     icon="FileText"
                     :delta="4.1"
+                    tone="green"
                 />
                 <StatCard
                     label="Attendance"
                     value="88%"
                     icon="UserCheck"
                     :delta="2.3"
+                    tone="green"
                 />
             </div>
 
             <!-- Konten + kalender -->
             <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:gap-6">
                 <div class="space-y-4 lg:col-span-2 lg:space-y-6">
-                    <!-- <CheckInCard /> -->
-                    <!-- <RevenueChart /> -->
+<!-- <CheckInCard tone="green" /> -->
+            <!-- <RevenueChart tone="green" /> -->
                     <RecentPurchaseOrderDocuments />
                 </div>
                 <div class="space-y-4 lg:space-y-6">
-                    <CalendarWidget @select="onDate" />
-                    <!-- <TaskList /> -->
+                    <CalendarWidget tone="green" @select="onDate" />
+                    <!-- <TaskList tone="green" /> -->
                     
                 </div>
             </div>

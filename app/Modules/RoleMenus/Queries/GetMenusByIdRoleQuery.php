@@ -3,7 +3,6 @@
 namespace App\Modules\RoleMenus\Queries;
 
 use App\Modules\RoleMenus\Repositories\RoleMenusRepository;
-use Illuminate\Support\Collection;
 
 class GetMenusByIdRoleQuery
 {
@@ -12,8 +11,7 @@ class GetMenusByIdRoleQuery
      */
     public function __construct(
         private RoleMenusRepository $repository
-    )
-    {}
+    ) {}
 
     public function execute(int $roleId): array
     {

@@ -67,7 +67,6 @@ function sanitizeHtml(html?: string | null) {
 const stepStatusMap: Record<string, NonNullable<StepsProps["status"]>> = {
     APPROVED: "finish",
     PENDING: "process",
-    REJECTED: "error",
     NEED_REVISION: "error",
     UNKNOWN: "wait",
 };
@@ -94,16 +93,7 @@ function roleLabel(a: TransactionApproval) {
             <span
                 class="rounded-full px-3 py-1 text-xs font-medium"
                 :class="[
-                    toneText[overall.tone],
-                    overall.tone === 'emerald'
-                        ? 'bg-emerald-50'
-                        : overall.tone === 'amber'
-                          ? 'bg-amber-50'
-                          : overall.tone === 'red'
-                            ? 'bg-red-50'
-                            : overall.tone === 'violet'
-                              ? 'bg-violet-50'
-                              : 'bg-slate-100',
+                    toneText[overall.tone]
                 ]"
             >
                 {{ overall.label }}
@@ -213,7 +203,6 @@ function roleLabel(a: TransactionApproval) {
     list-style: decimal;
 }
 .ql-content :deep(a) {
-    color: #0284c7;
     text-decoration: underline;
 }
 .ql-content :deep(strong) {

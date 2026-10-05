@@ -17,6 +17,9 @@ class FindPurchaseOrderQuery
                 'tx.transaction_type',
                 'tx.correlation_id',
                 'tx.due_date',
+                'tx.payment_term',
+                'tx.created_by',
+                'tx.updated_at',
                 'tx.file_attachment',
                 'tx.description',
                 'tx.sub_total',
@@ -33,7 +36,7 @@ class FindPurchaseOrderQuery
                     ) AS details
                 ")
             )
-            ->join('transaction_details as td', 'td.transaction_id', '=', 'tx.id')
+            ->leftJoin('transaction_details as td', 'td.transaction_id', '=', 'tx.id')
             ->where('tx.id', $id)
             ->groupBy(
                 'tx.id',
@@ -41,6 +44,9 @@ class FindPurchaseOrderQuery
                 'tx.transaction_type',
                 'tx.correlation_id',
                 'tx.due_date',
+                'tx.payment_term',
+                'tx.created_by',
+                'tx.updated_at',
                 'tx.file_attachment',
                 'tx.description',
                 'tx.sub_total',
@@ -50,12 +56,22 @@ class FindPurchaseOrderQuery
             )
             ->first();
 
-        $decode_details = json_decode($transaction->details, true);
+        // PO yang belum punya detail tidak mungkin terjadi lewat alur create
+        // (detail divalidasi min:1), tapi `first()` bisa tetap null kalau id-nya
+        // tidak ada. Dicek di sini supaya Show tidak fatal error.
+        if ($transaction === null) {
+            return null;
+        }
 
-        $transaction->details = collect($decode_details)
+        // LEFT JOIN membuat `details` berisi satu objek null untuk PO tanpa
+        // detail, jadi harus difilter sebelum di-decode.
+        $decode_details = json_decode((string) $transaction->details, true);
+
+        $transaction->details = collect($decode_details ?: [])
+            ->filter(fn ($detail) => is_array($detail) && isset($detail['name']))
             ->mapWithKeys(function ($detail) {
                 return [
-                    strtolower(str_replace(' ', '_', $detail['name'])) => $detail['value']
+                    strtolower(str_replace(' ', '_', $detail['name'])) => $detail['value'],
                 ];
             });
 

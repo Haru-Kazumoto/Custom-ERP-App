@@ -12,6 +12,14 @@ import {
     type ChartData,
     type ChartOptions,
 } from "chart.js";
+import { dashboardTone, type DashboardTone } from "@/lib/dashboardTone";
+
+const props = withDefaults(
+    defineProps<{ tone?: DashboardTone }>(),
+    { tone: "blue" },
+);
+
+const t = computed(() => dashboardTone(props.tone));
 
 ChartJS.register(
     CategoryScale,
@@ -56,8 +64,6 @@ const periods: { key: Period; label: string }[] = [
     { key: "12m", label: "12 Months" },
 ];
 
-const BRAND = "#0284c7";
-
 const chartData = computed<ChartData<"line">>(() => {
     const d = datasets[period.value];
     return {
@@ -66,12 +72,12 @@ const chartData = computed<ChartData<"line">>(() => {
             {
                 label: "Revenue",
                 data: d.values,
-                borderColor: BRAND,
+                borderColor: t.value.hex,
                 borderWidth: 2.5,
                 tension: 0.4,
                 fill: true,
                 pointBackgroundColor: "#fff",
-                pointBorderColor: BRAND,
+                pointBorderColor: t.value.hex,
                 pointBorderWidth: 2,
                 pointRadius: 4,
                 pointHoverRadius: 6,
@@ -79,15 +85,15 @@ const chartData = computed<ChartData<"line">>(() => {
                 backgroundColor: (ctx) => {
                     const { chart } = ctx;
                     const { ctx: c, chartArea } = chart;
-                    if (!chartArea) return "rgba(2,132,199,0.15)";
+                    if (!chartArea) return t.value.gradientTop;
                     const g = c.createLinearGradient(
                         0,
                         chartArea.top,
                         0,
                         chartArea.bottom,
                     );
-                    g.addColorStop(0, "rgba(2,132,199,0.25)");
-                    g.addColorStop(1, "rgba(2,132,199,0)");
+                    g.addColorStop(0, t.value.gradientTop);
+                    g.addColorStop(1, t.value.gradientBottom);
                     return g;
                 },
             },
@@ -135,7 +141,7 @@ const chartOptions: ChartOptions<"line"> = {
                     class="rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
                     :class="
                         period === p.key
-                            ? 'bg-white text-[#0284c7] shadow-sm'
+                            ? ['bg-white', t.text, 'shadow-sm']
                             : 'text-slate-500'
                     "
                     @click="period = p.key"

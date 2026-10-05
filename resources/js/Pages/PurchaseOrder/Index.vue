@@ -1,24 +1,24 @@
 <template>
-    <AppLayout>
+    <AppLayout page-name="Create Purchase Order">
         <div class="flex flex-col gap-5">
             <!-- Header halaman -->
-            <HeaderPage
-                title="Daftar Dokumen "
-                subTitle="Pantau seluruh dokumen Purchase Order beserta status
-                        persetujuannya"
-            >
+            <HeaderPage title="Daftar Dokumen " subTitle="Pantau seluruh dokumen Purchase Order beserta status
+                        persetujuannya">
                 <template #action>
                     <div class="flex gap-2 ml-auto">
-                        <NButton class="gap-2">
-                            <Settings2 class="h-4 w-4" />
-                            <span class="inline">Kelola Dokumen</span>
+                        <NButton size="large">
+                            <template #icon>
+                                <NIcon :component="Settings2" />
+                            </template>
+
+                            Kelola Dokumen
                         </NButton>
-                        <NButton
-                            class="gap-2 bg-blue-600 hover:bg-blue-700"
-                            @click="redirectCreateForm()"
-                        >
-                            <Plus class="h-4 w-4" />
-                            <span class="inline">PO Baru</span>
+                        <NButton :loading :disabled="loading" @click="redirectCreateForm()" type="primary" size="large">
+                            <template #icon>
+                                <NIcon :component="Plus" />
+                            </template>
+
+                            PO Baru
                         </NButton>
                     </div>
                 </template>
@@ -28,15 +28,12 @@
             <div class="rounded-xl border border-slate-200 bg-white shadow-sm">
                 <!-- Toolbar: judul + total + filter -->
                 <div
-                    class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
+                    class="flex flex-col gap-3 border-b border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between w-full">
                     <div class="flex items-center gap-2">
                         <h2 class="font-medium text-slate-900">
                             Purchase Order
                         </h2>
-                        <span
-                            class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600"
-                        >
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-600">
                             {{
                                 purchaseOrders.meta?.total ??
                                 purchaseOrders.data.length
@@ -44,36 +41,24 @@
                         </span>
                     </div>
 
-                    <div
-                        class="flex flex-col gap-2 sm:flex-row sm:items-center"
-                    >
-                        <div class="relative w-full sm:w-64">
-                            <Search
-                                class="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 z-10"
-                            />
-                            <NInput
-                                v-model:value="form.search"
-                                placeholder="Cari no. PO, nama vendor..."
-                                class="pl-8"
-                            />
-                        </div>
+                    <div class="flex flex-col gap-2 sm:flex-row sm:items-center">
+                        <NInput v-model:value="form.search" placeholder="Cari no. PO, nama vendor..." class="w-20">
+                            <template #prefix>
+                                <NIcon :component="Search" />
+                            </template>
+                        </NInput>
 
-                        <NSelect
-                            v-model:value="form.status"
-                            :options="selectOptions"
-                            placeholder="Semua Status"
-                            class="w-full sm:w-44"
-                        />
+                        <NSelect v-model:value="form.status" :options="selectOptions" placeholder="Semua Status" />
 
-                        <NButton class="gap-2 justify-between sm:w-auto">
-                            <span class="flex items-center gap-2">
-                                <CalendarRange class="h-4 w-4" />
-                                <span class="hidden sm:inline"
-                                    >Rentang Tanggal</span
-                                >
-                            </span>
-                            <ChevronDown class="h-4 w-4 text-slate-400" />
-                        </NButton>
+                        <!-- <NButton class="gap-2 justify-between sm:w-auto"> -->
+                        <!--     <span class="flex items-center gap-2"> -->
+                        <!--         <CalendarRange class="h-4 w-4" /> -->
+                        <!--         <span class="hidden sm:inline" -->
+                        <!--             >Rentang Tanggal</span -->
+                        <!--         > -->
+                        <!--     </span> -->
+                        <!--     <ChevronDown class="h-4 w-4 text-slate-400" /> -->
+                        <!-- </NButton> -->
                     </div>
                 </div>
 
@@ -82,45 +67,28 @@
                     <table class="w-full caption-bottom text-sm">
                         <thead>
                             <tr class="border-b border-slate-100">
-                                <th
-                                    class="h-10 px-4 text-left align-middle font-medium text-slate-500"
-                                >
+                                <th class="h-10 px-4 text-left align-middle font-medium text-slate-500">
                                     No. PO
                                 </th>
-                                <th
-                                    class="h-10 px-4 text-left align-middle font-medium text-slate-500"
-                                >
+                                <th class="h-10 px-4 text-left align-middle font-medium text-slate-500">
                                     Vendor
                                 </th>
-                                <th
-                                    class="h-10 px-4 text-left align-middle font-medium text-slate-500"
-                                >
+                                <th class="h-10 px-4 text-left align-middle font-medium text-slate-500">
                                     Persetujuan
                                 </th>
-                                <th
-                                    class="h-10 px-4 text-left align-middle font-medium text-slate-500"
-                                >
+                                <th class="h-10 px-4 text-left align-middle font-medium text-slate-500">
                                     Total PO
                                 </th>
-                                <th
-                                    class="h-10 px-4 text-left align-middle font-medium text-slate-500"
-                                >
+                                <th class="h-10 px-4 text-left align-middle font-medium text-slate-500">
                                     Pengirim
                                 </th>
-                                <th
-                                    class="h-10 w-10 px-4 text-left align-middle font-medium text-slate-500"
-                                />
+                                <th class="h-10 w-10 px-4 text-left align-middle font-medium text-slate-500" />
                             </tr>
                         </thead>
                         <tbody>
                             <tr v-if="purchaseOrders.data.length === 0">
-                                <td
-                                    colspan="7"
-                                    class="px-4 py-16 text-center align-middle"
-                                >
-                                    <div
-                                        class="flex flex-col items-center gap-2"
-                                    >
+                                <td colspan="7" class="px-4 py-16 text-center align-middle">
+                                    <div class="flex flex-col items-center gap-2">
                                         <FileX class="h-8 w-8 text-slate-300" />
                                         <p class="font-medium text-slate-700">
                                             Belum ada dokumen
@@ -133,12 +101,8 @@
                                 </td>
                             </tr>
 
-                            <tr
-                                v-for="po in purchaseOrders.data"
-                                :key="po.id"
-                                class="cursor-pointer border-b border-slate-50 hover:bg-slate-50"
-                                @click="viewPo(po)"
-                            >
+                            <tr v-for="po in purchaseOrders.data" :key="po.id"
+                                class="cursor-pointer border-b border-slate-50 hover:bg-slate-50" @click="viewPo(po)">
 
                                 <td class="px-4 py-3 align-middle">
                                     <p class="font-medium text-slate-900">
@@ -154,57 +118,32 @@
                                     </p>
                                 </td>
 
-                                <td
-                                    class="px-4 py-3 align-middle text-slate-700"
-                                >
+                                <td class="px-4 py-3 align-middle text-slate-700">
                                     {{ po.detail.pemasok }}
                                 </td>
 
                                 <td class="px-4 py-3 align-middle">
-                                    <ApprovalChain
-                                        :last-approval="
-                                            po.current_approval_role
-                                        "
-                                        :status-approval="
-                                            po.current_approval_status
-                                        "
-                                        :proceed-by="
-                                            po.current_approval_proceed_by
-                                        "
-                                    />
+                                    <ApprovalChain :last-approval="po.current_approval_role
+                                        " :status-approval="po.current_approval_status
+                                            " :proceed-by="po.current_approval_proceed_by
+                                                " />
                                 </td>
 
-                                <td
-                                    class="px-4 py-3 align-middle font-medium text-slate-900 whitespace-nowrap"
-                                >
+                                <td class="px-4 py-3 align-middle font-medium text-slate-900 whitespace-nowrap">
                                     {{ formatRupiah(po.grand_total) }}
                                 </td>
 
                                 <td class="px-4 py-3 align-middle">
-                                    <ExpeditionBadge
-                                        :nama="po.detail.transportasi ?? '-'"
-                                        :mode="po.detail.nomor_polisi"
-                                    />
+                                    <ExpeditionBadge :nama="po.detail.transportasi ?? '-'"
+                                        :mode="po.detail.nomor_polisi" />
                                 </td>
 
                                 <td class="px-4 py-3 align-middle" @click.stop>
-                                    <NDropdown
-                                        trigger="click"
-                                        placement="bottom-end"
-                                        :options="rowMenuOptions"
-                                        @select="
-                                            (key) => handleRowAction(key, po)
-                                        "
-                                    >
-                                        <NButton
-                                            quaternary
-                                            circle
-                                            size="small"
-                                            class="h-8 w-8"
-                                        >
-                                            <MoreVertical
-                                                class="h-4 w-4 text-slate-500"
-                                            />
+                                <NDropdown trigger="click" placement="bottom-end" :options="rowMenuOptions(po)" @select="
+                                    (key) => handleRowAction(key, po)
+                                ">
+                                        <NButton quaternary circle size="small" class="h-8 w-8">
+                                            <MoreVertical class="h-4 w-4 text-slate-500" />
                                         </NButton>
                                     </NDropdown>
                                 </td>
@@ -215,10 +154,7 @@
 
                 <!-- ── Tampilan kartu (mobile) ─────────────────────────────────-->
                 <div class="md:hidden p-4">
-                    <div
-                        v-if="purchaseOrders.data.length === 0"
-                        class="flex flex-col items-center gap-2 py-12"
-                    >
+                    <div v-if="purchaseOrders.data.length === 0" class="flex flex-col items-center gap-2 py-12">
                         <FileX class="h-8 w-8 text-slate-300" />
                         <p class="font-medium text-slate-700">
                             Belum ada dokumen
@@ -230,26 +166,16 @@
                     </div>
 
                     <div v-else class="flex flex-col gap-3">
-                        <PurchaseOrderMobileCard
-                            v-for="po in purchaseOrders.data"
-                            :key="po.id"
-                            :po="po"
-                            :selected="selectedIds.includes(po.id)"
-                            :format-currency="formatRupiah"
-                            @toggle-select="toggleSelect"
-                            @view="viewPo"
-                            @edit="editPo"
-                            @print="printPo"
-                            @delete="deletePo"
-                        />
+                        <PurchaseOrderMobileCard v-for="po in purchaseOrders.data" :key="po.id" :po="po"
+                            :selected="selectedIds.includes(po.id)" :format-currency="formatRupiah"
+                            :current-user-id="auth.user.id" @toggle-select="toggleSelect" @view="viewPo"
+                            @revise="revisePo" />
                     </div>
                 </div>
 
                 <!-- ── Footer: info halaman + pagination ──────────────────────-->
-                <div
-                    v-if="purchaseOrders.data.length > 0"
-                    class="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between"
-                >
+                <div v-if="purchaseOrders.data.length > 0"
+                    class="flex flex-col gap-3 border-t border-slate-100 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <p class="text-sm text-slate-500">
                         Menampilkan {{ purchaseOrders.meta?.from }}–{{
                             purchaseOrders.meta?.to
@@ -258,18 +184,10 @@
                     </p>
 
                     <div class="flex flex-wrap items-center gap-1">
-                        <NButton
-                            v-for="(link, idx) in purchaseOrders.links"
-                            :key="idx"
-                            size="small"
-                            :class="
-                                link.active
-                                    ? 'bg-blue-600 hover:bg-blue-700'
-                                    : ''
-                            "
-                            :disabled="!link.url"
-                            @click="gotoPage(link.url)"
-                        >
+                        <NButton v-for="(link, idx) in purchaseOrders.links" :key="idx" size="small" :class="link.active
+                            ? 'bg-blue-600 hover:bg-blue-700'
+                            : ''
+                            " :disabled="!link.url" @click="gotoPage(link.url)">
                             <span v-html="link.label" />
                         </NButton>
                     </div>
@@ -288,50 +206,41 @@
  * KONTRAK DATA DARI BACKEND (Inertia props)
  * ───────────────────────────────────────────────────────────────────────
  *
- * purchaseOrders (object, hasil dari Model::paginate() yang dilempar
- * langsung sebagai prop Inertia):
+ * purchaseOrders (paginator dari `GetPurchaseOrdersQuery`):
  * {
- *   data: [
- *     {
- *       id: 1,
- *       no_po: 'PO-2026-0001',
- *       vendor: { id: 10, nama: 'Los Pollos Hermanos' },
- *       total: 12500000,                         // angka mentah (integer/float), bukan string
- *       ekspedisi: { nama: 'JNE Logistics', mode: 'darat' }, // mode: darat | laut | udara
- *       persetujuan: {
- *         approvers: [
- *           { id: 1, nama: 'Able Anthony', avatar_url: null, status: 'disetujui', urutan: 1 },
- *           { id: 2, nama: 'Bamasaye Mobolaji', avatar_url: null, status: 'menunggu', urutan: 2 },
- *         ],
- *       },
- *       dibuat_oleh: { nama: 'Able Anthony' },
- *       tanggal: '2026-06-18',
- *       detail_url: '/purchase-order/1',
- *       edit_url: '/purchase-order/1/edit',
- *     },
- *     // ...
- *   ],
- *   links: [
- *     { url: null, label: '&laquo; Previous', active: false },
- *     { url: '/purchase-order?page=1', label: '1', active: true },
- *     { url: '/purchase-order?page=2', label: '2', active: false },
- *     { url: null, label: 'Next &raquo;', active: false },
- *   ],
- *   meta: { current_page: 1, last_page: 3, per_page: 10, total: 25, from: 1, to: 10 },
+ *   data: [ PurchaseOrderSummary, ... ],
+ *   links: [ { url: null, label: '&laquo; Previous', active: false }, ... ],
+ *   meta: { current_page: 1, last_page: 3, per_page: 20, total: 25, from: 1, to: 20 },
  * }
  *
- * filters (object, nilai filter yang sedang aktif — dikirim balik dari
- * controller supaya state filter tetap konsisten setelah reload):
- * { search: '', status: '', date_from: '', date_to: '' }
+ * `PurchaseOrderSummary` didefinisikan di `types/purchase-order.ts`. Ringkasnya:
+ * {
+ *   id: 1,
+ *   transaction_code: 'PO-2026-0001',
+ *   grand_total: 12500000,              // angka mentah, bukan string berformat
+ *   created_by: 6,                      // id user pembuat; dasar hak revisi
+ *   detail: { pemasok: 'PT vendors', tanggal_po: '...', transportasi: '...' },
+ *   current_approval_status: 'NEED_REVISION',
+ *   current_approval_role: 'Finance',
+ *   current_approval_proceed_by: 'Budi',
+ *   current_approval_description: 'Qty salah pada baris gula',
+ * }
  *
- * statusOptions (array, daftar opsi status untuk dropdown filter):
- * [{ value: 'menunggu', label: 'Menunggu Persetujuan' }, ...]
+ * filters: nilai filter aktif yang dikirim balik controller supaya state tetap
+ * konsisten setelah reload — { search: '', status: '', date_from: '', date_to: '' }
  *
- * Contoh controller Laravel (ringkas):
- *   return Inertia::render('PurchaseOrder/DaftarDokumen', [
- *       'purchaseOrders' => $query->paginate(10)->withQueryString(),
+ * statusOptions: `GetPurchaseOrdersQuery::documentStatusOptions()`, yaitu
+ * { APPROVED: 'Selesai disetujui', NEED_REVISION: 'Perlu revisi' }.
+ * Nilainya huruf besar karena dikirim apa adanya ke `current_approval_status`.
+ *
+ * auth: dibagikan Inertia ke semua halaman; dipakai untuk menentukan baris mana
+ * yang memunculkan aksi Revisi.
+ *
+ * Contoh controller (ringkas):
+ *   return Inertia::render('PurchaseOrder/Index', [
+ *       'purchaseOrders' => $query->paginate(20)->withQueryString(),
  *       'filters' => $request->only(['search', 'status', 'date_from', 'date_to']),
- *       'statusOptions' => StatusPersetujuan::options(),
+ *       'statusOptions' => GetPurchaseOrdersQuery::documentStatusOptions(),
  *   ]);
  */
 
@@ -346,12 +255,10 @@ import {
     MoreVertical,
     Eye,
     Pencil,
-    Printer,
-    Trash2,
     FileX,
 } from "lucide-vue-next";
 
-import { NButton, NInput, NCheckbox, NSelect, NDropdown } from "naive-ui";
+import { NButton, NInput, NSelect, NDropdown, NIcon } from "naive-ui";
 
 import ApprovalChain from "@/Components/Feature/PurchaseOrder/ApprovalChain.vue";
 import ExpeditionBadge from "@/Components/Feature/PurchaseOrder/ExpeditionBadge.vue";
@@ -381,13 +288,21 @@ const props = defineProps({
         default: () => ({ search: "", status: "", date_from: "", date_to: "" }),
     },
     statusOptions: {
+        // Nilai filter dikirim apa adanya ke `current_approval_status`, jadi
+        // harus huruf besar seperti yang tersimpan di database. Default di sini
+        // hanya cadangan untuk render tanpa props; `PurchaseOrderController`
+        // yang mengisinya lewat `GetPurchaseOrdersQuery::documentStatusOptions()`.
         type: Array,
         default: () => [
-            { value: "menunggu", label: "Menunggu Persetujuan" },
-            { value: "disetujui", label: "Disetujui" },
-            { value: "ditolak", label: "Ditolak" },
-            { value: "selesai", label: "Selesai" },
+            { value: "APPROVED", label: "Selesai disetujui" },
+            { value: "NEED_REVISION", label: "Perlu revisi" },
         ],
+    },
+    // `auth` dibagikan Inertia ke semua halaman; dipakai untuk menentukan baris
+    // mana yang memunculkan aksi Revisi.
+    auth: {
+        type: Object,
+        default: () => ({ user: { id: null, name: "" } }),
     },
 });
 
@@ -400,6 +315,8 @@ const form = reactive({
     status: props.filters.status || "semua",
 });
 
+const loading = ref(false);
+
 // NSelect memakai array `options` ({ label, value }), bukan slot SelectItem.
 // Opsi "Semua Status" disisipkan di depan, value-nya sentinel 'semua'.
 const selectOptions = computed(() => [
@@ -407,38 +324,59 @@ const selectOptions = computed(() => [
     ...props.statusOptions.map((o) => ({ label: o.label, value: o.value })),
 ]);
 
+console.log(selectOptions.value);
+
 // NDropdown memakai array `options` + satu handler @select, bukan slot
 // DropdownMenuItem dengan @click masing-masing. Separator: { type: 'divider' }.
-const rowMenuOptions = [
-    {
-        label: "Lihat Detail",
-        key: "view",
-        icon: () => h(Eye, { class: "h-4 w-4" }),
-    },
-    { label: "Edit", key: "edit", icon: () => h(Pencil, { class: "h-4 w-4" }) },
-    {
-        label: "Cetak PDF",
-        key: "print",
-        icon: () => h(Printer, { class: "h-4 w-4" }),
-    },
-    { type: "divider", key: "d1" },
-    {
-        label: "Hapus",
-        key: "delete",
-        icon: () => h(Trash2, { class: "h-4 w-4" }),
-        props: { style: "color:#dc2626" },
-    },
-];
+//
+// Opsi dibuat per baris karena "Revisi" hanya berlaku untuk dokumen
+// `NEED_REVISION` milik pembuatnya. Menu lama (Edit/Cetak/Hapus) dihapus:
+// `routes/purchase_order.php` tidak punya route untuk ketiganya, jadi
+// menampilkannya hanya menawarkan aksi yang pasti gagal.
+function rowMenuOptions(po) {
+    const options = [
+        {
+            label: "Lihat Detail",
+            key: "view",
+            icon: () => h(Eye, { class: "h-4 w-4" }),
+        },
+    ];
+
+    if (canRevise(po)) {
+        options.push({
+            label: "Revisi",
+            key: "revise",
+            icon: () => h(Pencil, { class: "h-4 w-4" }),
+        });
+    }
+
+    return options;
+}
+
+/**
+ * Hak revisi hanya milik pembuat dokumen, dan hanya saat statusnya
+ * `NEED_REVISION`. `RevisePurchaseOrderAction` menegakkan dua syarat yang sama,
+ * jadi ini unpacking UX, bukan pengganti otorisasi.
+ */
+function canRevise(po) {
+    return (
+        po.current_approval_status === "NEED_REVISION" &&
+        po.created_by === props.auth.user.id
+    );
+}
 
 function handleRowAction(key, po) {
     if (key === "view") viewPo(po);
-    else if (key === "edit") editPo(po);
-    else if (key === "print") printPo(po);
-    else if (key === "delete") deletePo(po);
+    else if (key === "revise") revisePo(po);
 }
 
 function redirectCreateForm() {
-    router.get(route("purchase-order.create"));
+    router.get(route("purchase-order.create"), {}, {
+        preserveState: true,
+        preserveScroll: true,
+        onStart: () => loading.value = true,
+        onFinish: () => loading.value = false
+    });
 }
 
 function applyFilters() {
@@ -498,17 +436,8 @@ function viewPo(po) {
     router.visit(route("purchase-order.show", po.id));
 }
 
-function editPo(po) {
-    if (po.edit_url) router.visit(po.edit_url);
-}
-
-function printPo(po) {
-    if (po.detail_url) window.open(`${po.detail_url}/cetak`, "_blank");
-}
-
-function deletePo(po) {
-    if (!confirm(`Hapus Purchase Order ${po.no_po}?`)) return;
-    router.delete(`/purchase-order/${po.id}`, { preserveScroll: true });
+function revisePo(po) {
+    router.get(route("purchase-order.revise", po.id));
 }
 
 // ── Util ──────────────────────────────────────────────────────────────

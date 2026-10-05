@@ -10,11 +10,23 @@ import {
 } from "@tanstack/vue-table";
 import { NButton } from "naive-ui";
 
-const props = defineProps<{
-    columns: ColumnDef<TData, TValue>[];
-    data: TData[];
-    pageSize?: number;
-}>();
+const props = withDefaults(
+    defineProps<{
+        columns: ColumnDef<TData, TValue>[];
+        data: TData[];
+        pageSize?: number;
+        /**
+         * Pesan saat tabel kosong.
+         *
+         * Defaults-nya "Belum ada dokumen." supaya pemanggil lama tidak berubah.
+         * Modul yang belum ada perlu pesan berbeda — "Modul DO belum tersedia"
+         *rogencry honest, sedangkan "Belum ada dokumen" menyiratkan data hilang
+         * padahal tabelnya memang belum punya sumber.
+         */
+        emptyText?: string;
+    }>(),
+    { emptyText: "Belum ada dokumen." },
+);
 
 const sorting = ref<SortingState>([]);
 
@@ -90,7 +102,7 @@ const table = useVueTable({
                             :colspan="columns.length"
                             class="h-24 px-4 text-center text-sm text-slate-400"
                         >
-                            Belum ada dokumen.
+{{ emptyText }}
                         </td>
                     </tr>
                 </tbody>

@@ -2,7 +2,6 @@
 
 namespace App\Modules\PurchaseOrder\Queries;
 
-use App\Models\Transaction;
 use Illuminate\Support\Facades\DB;
 
 class GetPurchaseOrderByDocumentCodeQuery
@@ -12,36 +11,38 @@ class GetPurchaseOrderByDocumentCodeQuery
 
     public function execute(string $transaction_code)
     {
-        $transaction = DB::table('transactions as tx')
-            ->selectRaw('
-                tx.*,
-                JSON_ARRAYAGG(
-                    JSON_OBJECT(
-                        "name", td.name,
-                        "value", td.value
-                    )
-                ) AS detail
-            ')
-            ->leftJoin('transaction_details as td', 'td.transaction_id', '=', 'tx.id')
-            ->where('tx.transaction_code', '=', $transaction_code)
-            ->groupBy([
-                'tx.id',
-                'tx.transaction_code',
-                'tx.transaction_type',
-                'tx.correlation_id'
-            ])
+        $transaction = DB::table('transactions')
+            ->select(['id', 'transaction_code', 'transaction_type'])
+            ->where('transaction_code', $transaction_code)
             ->first();
 
-        $decode_detail = json_decode($transaction->detail, true);
+        if ($transaction === null) {
+            return null;
+        }
 
-        $transaction->detail = collect($decode_detail)
-            ->mapWithKeys(function ($detail) {
-                return [
-                    strtolower(str_replace(' ', '_', $detail['name'])) => $detail['value']
-                ];
-            });
+        $transaction->detail = DB::table('transaction_details')
+            ->where('transaction_id', $transaction->id)
+            ->whereIn('name', [
+                'Pemasok',
+                'Alokasi',
+                'Tanggal PO',
+                'Transportasi',
+                'Jenis Pengiriman',
+            ])
+            ->get(['name', 'value'])
+            ->mapWithKeys(fn ($detail) => [
+                strtolower(str_replace(' ', '_', $detail->name)) => $detail->value,
+            ]);
 
-        $transaction->items = $this->get_items->execute($transaction->id);
+        $transaction->items = $this->get_items->execute($transaction->id)
+            ->map(fn ($item) => [
+                'id' => (int) $item->id,
+                'product_id' => (int) $item->product_id,
+                'product_code' => $item->product_code,
+                'product_name' => $item->product_name,
+                'quantity' => (int) $item->quantity,
+                'product_unit' => $item->product_unit,
+            ]);
 
         return $transaction;
     }

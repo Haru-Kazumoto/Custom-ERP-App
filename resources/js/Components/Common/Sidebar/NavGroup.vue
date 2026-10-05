@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { MenuItem } from "@/types/menu";
 import NavItem from "./NavItem.vue";
 
-const props = defineProps<{ item: MenuItem; activeKey: string }>();
+const props = defineProps<{ item: MenuItem; activeKey: string | null }>();
 
 const hasChildren = computed(() => (props.item.children?.length ?? 0) > 0);
 
@@ -44,8 +44,8 @@ const IconComp = computed(
                 cn(
                     'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                     groupActive
-                        ? 'text-[#0284c7]'
-                        : 'text-slate-600 hover:bg-sky-50 hover:text-[#0284c7]',
+                        ? 'text-[#18a058]'
+                        : 'text-slate-600 hover:bg-[#e9f6ee] hover:text-[#18a058]',
                 )
             "
             @click="open = !open"
@@ -60,7 +60,7 @@ const IconComp = computed(
 
         <div
             v-show="open"
-            class="ml-4 mt-1 space-y-1 border-l border-slate-100 pl-3"
+            class="ml-4 mt-1 space-y-1 border-l border-[#e9f6ee] pl-3"
         >
             <NavItem
                 v-for="child in item.children"

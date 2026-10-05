@@ -1,17 +1,23 @@
-<script setup>
+<script setup lang="ts">
 import { h } from "vue";
-import { MoreVertical, Eye, Pencil, Printer, Trash2 } from "lucide-vue-next";
-import { NButton, NCheckbox, NDropdown } from "naive-ui";
+import { MoreVertical, Eye, Pencil } from "lucide-vue-next";
+import { NButton, NCheckbox, NDropdown, NTag } from "naive-ui";
 import ApprovalChain from "./ApprovalChain.vue";
 import ExpeditionBadge from "./ExpeditionBadge.vue";
+import type { PurchaseOrderSummary } from "@/types/purchase-order";
 
 /**
- * po (Purchase Order) — bentuk objek yang diharapkan dari backend, lihat
- * contoh lengkap pada komentar di DaftarDokumen.vue
+ * Kartu Purchase Order untuk tampilan mobile — pasangan tabel desktop di
+ * `Pages/PurchaseOrder/Index.vue`.
+ *
+ * `po` mengikuti `PurchaseOrderSummary` (`GetPurchaseOrdersQuery`), bukan model
+ * `PurchaseOrder`: status approval sudah digabung jadi satu langkah
+ * (`current_approval_*`), bukan array approver. Karena itu `ApprovalChain`
+ * menerima `lastApproval`/`statusApproval`, bukan `approvers`.
  */
 const props = defineProps({
     po: {
-        type: Object,
+        type: Object as () => PurchaseOrderSummary,
         required: true,
     },
     selected: {
@@ -19,41 +25,57 @@ const props = defineProps({
         default: false,
     },
     formatCurrency: {
-        type: Function,
+        type: Function as () => (value: number | string) => string,
         required: true,
+    },
+    /** Id user yang sedang login; penentu ditampilkan atau tidaknya aksi Revisi. */
+    currentUserId: {
+        type: Number,
+        default: null,
+    },
+    /** Status yang menandai dokumen sedang menunggu revisi. */
+    revisionStatus: {
+        type: String,
+        default: "NEED_REVISION",
     },
 });
 
-const emit = defineEmits(["toggle-select", "view", "edit", "print", "delete"]);
+const emit = defineEmits(["toggle-select", "view", "revise"]);
 
-// NDropdown: item lewat array `options` + satu handler @select.
-// Separator: { type: 'divider' }. Ikon dirender via fungsi render.
-const menuOptions = [
-    {
-        label: "Lihat Detail",
-        key: "view",
-        icon: () => h(Eye, { class: "h-4 w-4" }),
-    },
-    { label: "Edit", key: "edit", icon: () => h(Pencil, { class: "h-4 w-4" }) },
-    {
-        label: "Cetak PDF",
-        key: "print",
-        icon: () => h(Printer, { class: "h-4 w-4" }),
-    },
-    { type: "divider", key: "d1" },
-    {
-        label: "Hapus",
-        key: "delete",
-        icon: () => h(Trash2, { class: "h-4 w-4" }),
-        props: { style: "color:#dc2626" },
-    },
-];
+/**
+ * Aksi menu dibuat per kartu. "Revisi" hanya untuk dokumen berstatus revisi milik
+ * pembuatnya; `RevisePurchaseOrderAction` menegakkan syarat yang sama di server.
+ */
+function menuOptions() {
+    const options = [
+        {
+            label: "Lihat Detail",
+            key: "view",
+            icon: () => h(Eye, { class: "h-4 w-4" }),
+        },
+    ];
 
-function handleAction(key) {
+    if (canRevise(props.po)) {
+        options.push({
+            label: "Revisi",
+            key: "revise",
+            icon: () => h(Pencil, { class: "h-4 w-4" }),
+        });
+    }
+
+    return options;
+}
+
+function canRevise(po: PurchaseOrderSummary) {
+    return (
+        po.current_approval_status === props.revisionStatus &&
+        po.created_by === props.currentUserId
+    );
+}
+
+function handleAction(key: string) {
     if (key === "view") emit("view", props.po);
-    else if (key === "edit") emit("edit", props.po);
-    else if (key === "print") emit("print", props.po);
-    else if (key === "delete") emit("delete", props.po);
+    else if (key === "revise") emit("revise", props.po);
 }
 </script>
 
@@ -67,9 +89,11 @@ function handleAction(key) {
                     @update:checked="emit('toggle-select', po.id)"
                 />
                 <div>
-                    <p class="font-semibold text-slate-900">{{ po.transaction_code }}</p>
+                    <p class="font-semibold text-slate-900">
+                        {{ po.transaction_code }}
+                    </p>
                     <p class="text-xs text-slate-500">
-                        {{ po.detail.pemasok ?? "-" }}
+                        {{ po.detail?.pemasok ?? "-" }}
                     </p>
                 </div>
             </div>
@@ -77,7 +101,7 @@ function handleAction(key) {
             <NDropdown
                 trigger="click"
                 placement="bottom-end"
-                :options="menuOptions"
+                :options="menuOptions()"
                 @select="handleAction"
             >
                 <NButton
@@ -101,8 +125,8 @@ function handleAction(key) {
             <div>
                 <p class="text-xs text-slate-400">Pengirim</p>
                 <ExpeditionBadge
-                    :nama="po.detail.transportasi ?? '-'"
-                    :mode="po.detail.nomor_polisi"
+                    :nama="po.detail?.transportasi ?? '-'"
+                    :mode="po.detail?.nomor_polisi"
                 />
             </div>
         </div>
@@ -110,60 +134,32 @@ function handleAction(key) {
         <div class="mt-4 border-t border-slate-100 pt-3">
             <p class="text-xs text-slate-400 mb-1.5">Persetujuan</p>
             <ApprovalChain
-                :approvers="
-                    po.persetujuan?.approvers ?? [
-                        {
-                            id: 1,
-                            nama: 'Able Anthony',
-                            avatar_url: null,
-                            status: 'disetujui',
-                            urutan: 1,
-                        },
-                        {
-                            id: 2,
-                            nama: 'Bamasaye Mobolaji',
-                            avatar_url: null,
-                            status: 'disetujui',
-                            urutan: 2,
-                        },
-                        {
-                            id: 3,
-                            nama: 'Bamasaye Mobolaji',
-                            avatar_url: null,
-                            status: 'disetujui',
-                            urutan: 3,
-                        },
-                        {
-                            id: 4,
-                            nama: 'Bamasaye Mobolaji',
-                            avatar_url: null,
-                            status: 'disetujui',
-                            urutan: 4,
-                        },
-                        {
-                            id: 5,
-                            nama: 'Bamasaye Mobolaji',
-                            avatar_url: null,
-                            status: 'menunggu',
-                            urutan: 5,
-                        },
-                        {
-                            id: 6,
-                            nama: 'Bamasaye Mobolaji',
-                            avatar_url: null,
-                            status: 'menunggu',
-                            urutan: 6,
-                        },
-                        {
-                            id: 7,
-                            nama: 'Haru Kazumoto',
-                            avatar_url: null,
-                            status: 'menunggu',
-                            urutan: 7,
-                        },
-                    ]
+                :last-approval="po.current_approval_proceed_by"
+                :status-approval="po.current_approval_status"
+                :proceed-by="
+                    po.current_approval_role
+                        ? `Tahap ${po.current_approval_order}: ${po.current_approval_role}`
+                        : '-'
                 "
             />
         </div>
+
+        <div
+            v-if="po.current_approval_description"
+            class="mt-3 rounded-lg bg-slate-50 px-2 py-1.5 text-xs text-slate-600"
+        >
+            {{ po.current_approval_description }}
+        </div>
+
+        <NTag
+            v-if="
+                !canRevise(po) && po.current_approval_status === revisionStatus
+            "
+            size="small"
+            :bordered="false"
+            class="mt-3 bg-slate-100 text-slate-500"
+        >
+            Hanya pembuat dokumen yang bisa merevisi
+        </NTag>
     </div>
 </template>

@@ -1,8 +1,4 @@
-export type ApprovalStatusDb =
-  | "APPROVED"
-  | "PENDING"
-  | "REJECTED"
-  | "NEED_REVISION";
+export type ApprovalStatusDb = "APPROVED" | "PENDING" | "NEED_REVISION";
 
 export type ApprovalTone = "emerald" | "amber" | "red" | "violet" | "slate";
 
@@ -15,7 +11,6 @@ export interface ApprovalMeta {
 const MAP: Record<ApprovalStatusDb, ApprovalMeta> = {
   APPROVED: { key: "APPROVED", label: "Disetujui", tone: "emerald" },
   PENDING: { key: "PENDING", label: "Menunggu", tone: "amber" },
-  REJECTED: { key: "REJECTED", label: "Ditolak", tone: "red" },
   NEED_REVISION: { key: "NEED_REVISION", label: "Perlu Revisi", tone: "violet" },
 };
 
@@ -37,9 +32,10 @@ export function overallApproval(
   if (!approvals.length)
     return { key: "UNKNOWN", label: "Belum ada persetujuan", tone: "slate" };
 
-  const rejected = approvals.find((a) => a.status?.toUpperCase() === "REJECTED");
-  if (rejected) return normalizeApproval("REJECTED");
-
+  // Terminal diperiksa lebih dulu: `generateApprovals()` membuat SEMUA langkah
+  // sekaligus sebagai PENDING, jadi PO yang berhenti di Finance masih punya
+  // langkah Marketing yang PENDING. Kalau PENDING dicek lebih dulu, dokumen
+  // yang butuh revisi akan dilaporkan sebagai "Menunggu".
   const revision = approvals.find(
     (a) => a.status?.toUpperCase() === "NEED_REVISION",
   );

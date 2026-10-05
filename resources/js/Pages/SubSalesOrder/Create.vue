@@ -1,37 +1,50 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue";
+import { onMounted, ref, watch } from "vue";
 import { Head } from "@inertiajs/vue3";
-import { NCard, NSelect, NButton, NInput, NDatePicker, NSpin } from "naive-ui";
+import {
+    NAlert,
+    NCard,
+    NSelect,
+    NButton,
+    NInput,
+    NDatePicker,
+} from "naive-ui";
 import Swal from "sweetalert2";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import HeaderPage from "@/Components/Common/HeaderPage.vue";
 import SsoItemTable from "@/Components/Feature/SubSalesOrder/SsoItemTable.vue";
 import { useSubSalesOrder } from "@/composables/useSubSalesOrder";
-import type { PoOption } from "@/types/sub-sales-order";
 import { useDocumentNumbers } from "@/composables/useDocumentNumbers";
 
-const props = defineProps<{
-    // dropdown PO siap-pakai (fetch saat load, dikirim via Inertia props)
-    purchaseOrders: PoOption[];
+defineProps<{
     auth: { user: { name: string } };
 }>();
 
-const { form, poDetail, processing, error, processPo } = useSubSalesOrder();
+const {
+    form,
+    poDetail,
+    processing,
+    error,
+    processPo,
+    clearProcessedPo,
+} = useSubSalesOrder();
 const {
     options: poSelectOptions,
     loading: poLoading,
+    error: poOptionsError,
     fetchOptions,
 } = useDocumentNumbers();
 
-onMounted(fetchOptions);
-// selectedPoNumber, onProcess, dst tetap seperti punyamu
+onMounted(() => {
+    void fetchOptions();
+});
 
-// PO terpilih (id) — dipisah dari form karena hanya referensi pemilihan
 const selectedPoNumber = ref<string | null>(null);
 
-function disabled() {
-    return !selectedPoNumber.value || processing.value;
-}
+watch(selectedPoNumber, () => {
+    clearProcessedPo();
+    error.value = null;
+});
 
 async function onProcess() {
     if (!selectedPoNumber.value) {
@@ -44,21 +57,26 @@ async function onProcess() {
         return;
     }
     await processPo(selectedPoNumber.value);
-    if (error.value) {
-        Swal.fire({ icon: "error", title: "Gagal", text: error.value });
-    }
 }
 
-// ← [KAMU] ini kerangka submit. Isi validasi & handler sesuai aturan bisnismu.
 function onSubmit() {
-    if (!poDetail.value) {
-        Swal.fire({ icon: "warning", title: "Proses PO dulu" });
+    if (!poDetail.value || !form.items.length) {
+        Swal.fire({
+            icon: "warning",
+            title: "Proses PO dan pastikan ada barang yang dipilih",
+        });
         return;
     }
 
+    if (!form.no_bukti.trim() || !form.no_so.trim() || !form.tanggal_kirim) {
+        Swal.fire({
+            icon: "warning",
+            title: "Lengkapi data wajib",
+            text: "No Bukti, No SO, dan Tanggal Kirim harus diisi.",
+        });
+        return;
+    }
 
-    // contoh minimal; tambahkan validasi no_bukti / no_so / tanggal_kirim sendiri
-    buildTransactionDetail();
     form.post(route("sub-sales-order.store"), {
         preserveScroll: true,
         onSuccess: () =>
@@ -68,54 +86,19 @@ function onSubmit() {
                 timer: 1600,
                 showConfirmButton: false,
             }),
-        onError: () =>
-            Swal.fire({ icon: "error", title: "Cek kembali isian form" }),
+        onError: (errors) =>
+            Swal.fire({
+                icon: "error",
+                title: "Gagal menyimpan Sub Sales Order",
+                text:
+                    Object.values(errors).join("\n") ||
+                    "Periksa kembali data yang diisi.",
+            }),
     });
 }
 
-function buildTransactionDetail() {
-    form.details = [
-        {
-            name: "No Bukti",
-            value: form.no_bukti,
-            type: "string",
-        },
-        {
-            name: "No SO",
-            value: form.no_so,
-            type: "string",
-        },
-        {
-            name: "Tanggal Kirim",
-            value: form.tanggal_kirim,
-            type: "datetime",
-        },
-        {
-            name: "Pemasok",
-            value: form.pemasok,
-            type: "string",
-        },
-        {
-            name: "Alokasi",
-            value: form.alokasi,
-            type: "string",
-        },
-        {
-            name: "Nama Ekspedisi",
-            value: form.transportasi,
-            type: "string",
-        },
-        {
-            name: "Jenis Pengiriman",
-            value: form.jenis_pengiriman,
-            type: "string",
-        },
-        {
-            name: "PIC",
-            value: props.auth.user.name,
-            type: "string",
-        }
-    ]
+function removeItem(index: number) {
+    form.items = form.items.filter((_, itemIndex) => itemIndex !== index);
 }
 </script>
 
@@ -142,18 +125,39 @@ function buildTransactionDetail() {
                             :options="poSelectOptions"
                             filterable
                             clearable
+                            :loading="poLoading"
+                            :disabled="processing || form.processing"
                             placeholder="Pilih nomor PO…"
                         />
                     </div>
                     <NButton
                         class="bg-[#0284c7] text-white hover:bg-[#0369a1] sm:w-auto"
                         :loading="processing"
+                        :disabled="
+                            !selectedPoNumber || processing || form.processing
+                        "
                         @click="onProcess"
-                        :disabled="!selectedPoNumber"
                     >
                         Proses
                     </NButton>
                 </div>
+
+                <NAlert
+                    v-if="poOptionsError"
+                    class="mt-3"
+                    type="error"
+                    :show-icon="true"
+                >
+                    {{ poOptionsError }}
+                </NAlert>
+                <NAlert
+                    v-if="error"
+                    class="mt-3"
+                    type="error"
+                    :show-icon="true"
+                >
+                    {{ error }}
+                </NAlert>
 
                 <!-- Ringkasan PO (muncul setelah Proses) -->
                 <transition
@@ -270,9 +274,13 @@ function buildTransactionDetail() {
                 </div>
             </NCard>
 
-            <!-- ===== Tabel item (read-only dari PO) ===== -->
+            <!-- ===== Tabel item dari PO; baris yang tidak dikirim dapat dihapus ===== -->
             <NCard :bordered="true" class="border-slate-200 shadow-sm">
-                <SsoItemTable :items="form.items" />
+                <SsoItemTable
+                    :items="form.items"
+                    :disabled="form.processing"
+                    @remove="removeItem"
+                />
             </NCard>
 
             <!-- ===== Submit ===== -->
@@ -280,7 +288,12 @@ function buildTransactionDetail() {
                 <NButton
                     class="bg-[#0284c7] text-white hover:bg-[#0369a1]"
                     :loading="form.processing"
-                    :disabled="!poDetail"
+                    :disabled="
+                        !poDetail ||
+                        !form.items.length ||
+                        form.processing ||
+                        processing
+                    "
                     @click="onSubmit"
                 >
                     Submit

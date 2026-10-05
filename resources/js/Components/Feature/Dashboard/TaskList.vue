@@ -1,5 +1,13 @@
 <script setup lang="ts">
 import { ref, computed } from "vue";
+import { dashboardTone, type DashboardTone } from "@/lib/dashboardTone";
+
+const props = withDefaults(
+    defineProps<{ tone?: DashboardTone }>(),
+    { tone: "blue" },
+);
+
+const t = computed(() => dashboardTone(props.tone));
 
 interface Task {
     id: number;
@@ -31,17 +39,17 @@ const tabs = ["all", "pending", "done"] as const;
             <h3 class="text-sm font-semibold text-slate-800">My Tasks</h3>
             <div class="flex gap-1 rounded-lg bg-slate-100 p-1">
                 <button
-                    v-for="t in tabs"
-                    :key="t"
+                    v-for="tab in tabs"
+                    :key="tab"
                     class="rounded-md px-2.5 py-1 text-xs font-medium capitalize transition-colors"
                     :class="
-                        filter === t
-                            ? 'bg-white text-[#0284c7] shadow-sm'
+                        filter === tab
+                            ? ['bg-white', t.text, 'shadow-sm']
                             : 'text-slate-500'
                     "
-                    @click="filter = t"
+                    @click="filter = tab"
                 >
-                    {{ t }}
+                    {{ tab }}
                 </button>
             </div>
         </div>
@@ -55,7 +63,8 @@ const tabs = ["all", "pending", "done"] as const;
                 <input
                     type="checkbox"
                     v-model="task.done"
-                    class="h-4 w-4 rounded border-slate-300 text-[#0284c7] focus:ring-sky-400"
+                    class="h-4 w-4 rounded border-slate-300"
+                    :class="[t.text, t.focusRing]"
                 />
                 <span
                     class="text-sm"
@@ -69,7 +78,8 @@ const tabs = ["all", "pending", "done"] as const;
                 </span>
             </label>
             <button
-                class="mt-2 text-sm font-medium text-[#0284c7] hover:underline"
+                class="mt-2 text-sm font-medium hover:underline"
+                :class="t.text"
             >
                 + New task
             </button>

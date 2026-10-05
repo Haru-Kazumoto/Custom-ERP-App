@@ -11,7 +11,7 @@ import { usePage } from "@inertiajs/vue3";
 const props = defineProps<{
     menus: MenuItem[];
     loading?: boolean;
-    activeKey: string;
+    activeKey: string | null;
     open: boolean; // drawer mobile
     user: Account;
 }>();
@@ -42,7 +42,7 @@ const isEmpty = computed(() => !props.loading && props.menus.length === 0);
         <div class="flex items-center justify-between px-5 py-5">
             <div class="flex items-center gap-2.5">
                 <div
-                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#0284c7] text-white"
+                    class="flex h-8 w-8 items-center justify-center rounded-lg bg-[#18a058] text-white"
                 >
                     <Box class="h-5 w-5" />
                 </div>
@@ -57,10 +57,10 @@ const isEmpty = computed(() => !props.loading && props.menus.length === 0);
 
         <!-- User card -->
         <div
-            class="mx-5 mb-4 flex flex-col items-center rounded-2xl bg-sky-100/70 p-4 text-center"
+            class="mx-5 mb-4 flex flex-col items-center rounded-2xl bg-[#e9f6ee] p-4 text-center"
         >
             <div
-                class="h-16 w-16 overflow-hidden rounded-full bg-sky-100 ring-2 ring-sky-100"
+                class="h-16 w-16 overflow-hidden rounded-full bg-[#e9f6ee] ring-2 ring-[#e9f6ee]"
             >
                 <img
                     src="https://i.pravatar.cc/120?img=12"

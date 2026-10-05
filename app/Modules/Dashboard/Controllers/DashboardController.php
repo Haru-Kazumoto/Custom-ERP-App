@@ -3,6 +3,8 @@
 namespace App\Modules\Dashboard\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Finance\Controllers\FinanceDashboardController;
+use App\Modules\Roles\Queries\GetOneRoleFromUserQuery;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Attributes\Controllers\Middleware;
 use Inertia\Inertia;
@@ -11,78 +13,83 @@ use Inertia\Response;
 #[Middleware('auth')]
 class DashboardController extends Controller
 {
-    public function renderSalesDashboard(): Response
+    private function renderSalesDashboard(): Response
     {
         return Inertia::render('Dashboard/Sales');
     }
 
-    public function renderMarketingDashboard(): Response
+    private function renderMarketingDashboard(): Response
     {
         return Inertia::render('Dashboard/Marketing');
     }
 
-    public function renderProcurementDashboard(): Response
+    private function renderProcurementDashboard(): Response
     {
         return Inertia::render('Dashboard/Procurement');
     }
 
-    public function renderBusinessDevelopmentDashboard(): Response
+    private function renderBusinessDevelopmentDashboard(): Response
     {
         return Inertia::render('Dashboard/BusinessDevelopment');
     }
 
-    public function renderInvoicingDashboard(): Response
+    private function renderInvoicingDashboard(): Response
     {
         return Inertia::render('Dashboard/Invoicing');
     }
 
-    public function renderFinanceDashboard(): Response
+    /**
+     * Dashboard finance punya modul sendiri karena isinya bukan satu kartu
+     * statis: antrean approval lintas tipe dokumen, faktur terbit, dan klaim
+     * promo. Query-nya tetap milik modul Finance, di sini cukup meneruskan.
+     */
+    private function renderFinanceDashboard(FinanceDashboardController $finance): Response
     {
-        return Inertia::render('Dashboard/Finance');
+        return $finance->index();
     }
 
-    public function renderWarehouseDashboard(): Response
+    private function renderWarehouseDashboard(): Response
     {
         return Inertia::render('Dashboard/Warehouse');
     }
 
-    public function renderArControllerDashboard(): Response
+    private function renderArControllerDashboard(): Response
     {
         return Inertia::render('Dashboard/ArController');
     }
 
-    public function renderDocumentControlDashboard(): Response
+    private function renderDocumentControlDashboard(): Response
     {
         return Inertia::render('Dashboard/DocumentControl');
     }
 
-    public function renderAdminDashboard(): Response
+    private function renderAdminDashboard(): Response
     {
         return Inertia::render('Dashboard/Admin');
     }
 
-    public function renderDefaultDashboard(): Response
+    private function renderDefaultDashboard(): Response
     {
         // abort with 403 Forbidden or render a generic dashboard
         abort(403, 'Unauthorized access to dashboard');
     }
 
-    public function index(Request $request)
+    public function index(Request $request, GetOneRoleFromUserQuery $get_one_role_from_user, FinanceDashboardController $finance_dashboard)
     {
-        $role = $request->user()->role ? $request->user()->role->code : null;
-        // dd($role);
-        return match ($role) {
-            'admin'                 => $this->renderAdminDashboard(),
-            'sales'                 => $this->renderSalesDashboard(),
-            'marketing'             => $this->renderMarketingDashboard(),
-            'procurement'           => $this->renderProcurementDashboard(),
-            'business_development'  => $this->renderBusinessDevelopmentDashboard(),
-            'invoicing'             => $this->renderInvoicingDashboard(),
-            'finance'               => $this->renderFinanceDashboard(),
-            'warehouse'             => $this->renderWarehouseDashboard(),
-            'ar_controller'         => $this->renderArControllerDashboard(),
-            'document_control'      => $this->renderDocumentControlDashboard(),
-            default                 => $this->renderDefaultDashboard(),
+        $role = $get_one_role_from_user->execute($request->user()?->id);
+
+        return match ($role->code) {
+            'admin' => $this->renderAdminDashboard(),
+            'sales' => $this->renderSalesDashboard(),
+            'marketing' => $this->renderMarketingDashboard(),
+            'procurement' => $this->renderProcurementDashboard(),
+            'business_development' => $this->renderBusinessDevelopmentDashboard(),
+            'invoicing' => $this->renderInvoicingDashboard(),
+            'finance' => $this->renderFinanceDashboard($finance_dashboard),
+            'warehouse' => $this->renderWarehouseDashboard(),
+            'ar_controller' => $this->renderArControllerDashboard(),
+            'document_control' => $this->renderDocumentControlDashboard(),
+            default => $this->renderDefaultDashboard(),
         };
     }
 }

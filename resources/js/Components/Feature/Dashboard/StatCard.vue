@@ -2,25 +2,32 @@
 import { computed } from "vue";
 import * as icons from "lucide-vue-next";
 import { ArrowUpRight, ArrowDownRight } from "lucide-vue-next";
+import { dashboardTone, type DashboardTone } from "@/lib/dashboardTone";
 
-const props = defineProps<{
-    label: string;
-    value: string;
-    icon: string;
-    delta?: number;
-}>();
+const props = withDefaults(
+    defineProps<{
+        label: string;
+        value: string;
+        icon: string;
+        delta?: number;
+        tone?: DashboardTone;
+    }>(),
+    { tone: "blue" },
+);
 
 const IconComp = computed(
     () => (icons as Record<string, unknown>)[props.icon] ?? icons.Circle,
 );
 const up = computed(() => (props.delta ?? 0) >= 0);
+const t = computed(() => dashboardTone(props.tone));
 </script>
 
 <template>
     <div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <div class="flex items-start justify-between">
             <div
-                class="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-50 text-[#0284c7]"
+                class="flex h-10 w-10 items-center justify-center rounded-xl"
+                :class="[t.softBg, t.text]"
             >
                 <component :is="IconComp" class="h-5 w-5" />
             </div>

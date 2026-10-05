@@ -12,10 +12,13 @@ interface RecentDocument {
   total: number // Rupiah
 }
 
+// Hanya dipakai tabel dashboard Procurement, jadi warna brand hijau
+// (default Naive UI) ditaruh langsung di sini. Mode pengiriman tetap
+// dibedakan oleh ikon + label, bukan hanya warna.
 const shippingMeta = {
-  land: { label: 'Darat', icon: Truck, class: 'bg-sky-50 text-[#0284c7]' },
+  land: { label: 'Darat', icon: Truck, class: 'bg-[#18a058] text-white' },
   air: { label: 'Udara', icon: Plane, class: 'bg-violet-50 text-violet-600' },
-  sea: { label: 'Laut', icon: Ship, class: 'bg-emerald-50 text-emerald-600' },
+  sea: { label: 'Laut', icon: Ship, class: 'bg-amber-50 text-amber-600' },
 } as const
 
 // Header tombol sortable yang dipakai berulang.

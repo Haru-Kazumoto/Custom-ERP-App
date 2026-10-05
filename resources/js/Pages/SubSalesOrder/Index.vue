@@ -18,7 +18,7 @@
                             @click="redirectCreateForm()"
                         >
                             <Plus class="h-4 w-4" />
-                            <span class="inline">PO Baru</span>
+                            <span class="inline">Sub Sales Order Baru</span>
                         </NButton>
                     </div>
                 </template>
@@ -90,7 +90,7 @@
                                 <th
                                     class="h-10 px-4 text-left align-middle font-medium text-slate-500"
                                 >
-                                    Nomor Bukti
+                                    No SO
                                 </th>
                                 <th
                                     class="h-10 px-4 text-left align-middle font-medium text-slate-500"

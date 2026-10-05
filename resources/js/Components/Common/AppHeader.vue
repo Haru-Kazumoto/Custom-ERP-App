@@ -111,7 +111,7 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
         class="sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-slate-200 bg-white/80 px-4 backdrop-blur lg:px-6"
     >
         <button
-            class="rounded-lg p-2 text-slate-500 hover:bg-sky-50 lg:hidden"
+            class="rounded-lg p-2 text-slate-500 hover:bg-[#e9f6ee] lg:hidden"
             @click="$emit('toggle-sidebar')"
         >
             <Menu class="h-5 w-5" />
@@ -130,14 +130,14 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
         <!-- Notifikasi -->
         <div ref="root" class="relative ml-auto">
             <button
-                class="relative rounded-lg p-2 text-slate-500 hover:bg-sky-50"
-                :class="open && 'bg-sky-50 text-[#0284c7]'"
+                class="relative rounded-lg p-2 text-slate-500 hover:bg-[#e9f6ee]"
+                :class="open && 'bg-[#e9f6ee] text-[#18a058]'"
                 @click="toggle"
             >
                 <Bell class="h-5 w-5" />
                 <span
                     v-if="unreadCount"
-                    class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#0284c7] px-1 text-[10px] font-semibold text-white"
+                    class="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#18a058] px-1 text-[10px] font-semibold text-white"
                 >
                     {{ unreadCount }}
                 </span>
@@ -163,14 +163,14 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
                             >
                             <span
                                 v-if="unreadCount"
-                                class="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-medium text-[#0284c7]"
+                                class="rounded-full bg-[#e9f6ee] px-2 py-0.5 text-xs font-medium text-[#18a058]"
                             >
                                 {{ unreadCount }} new
                             </span>
                         </div>
                         <button
                             v-if="unreadCount"
-                            class="text-xs font-medium text-[#0284c7] hover:underline"
+                            class="text-xs font-medium text-[#18a058] hover:underline"
                             @click="markAllRead"
                         >
                             Mark all read
@@ -182,7 +182,7 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
                             v-for="n in notifications"
                             :key="n.id"
                             class="flex w-full gap-3 border-b border-slate-50 px-4 py-3 text-left transition-colors hover:bg-slate-50"
-                            :class="!n.read && 'bg-sky-50/40'"
+                            :class="!n.read && 'bg-[#e9f6ee]/40'"
                             @click="markRead(n)"
                         >
                             <div
@@ -190,7 +190,7 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
                                 :class="
                                     n.read
                                         ? 'bg-slate-100 text-slate-400'
-                                        : 'bg-sky-50 text-[#0284c7]'
+                                        : 'bg-[#e9f6ee] text-[#18a058]'
                                 "
                             >
                                 <component
@@ -209,7 +209,7 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
                                     </p>
                                     <span
                                         v-if="!n.read"
-                                        class="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#0284c7]"
+                                        class="mt-1 h-2 w-2 shrink-0 rounded-full bg-[#18a058]"
                                     />
                                 </div>
                                 <p
@@ -238,7 +238,7 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
                         class="border-t border-slate-100 px-4 py-2.5 text-center"
                     >
                         <button
-                            class="text-sm font-medium text-[#0284c7] hover:underline"
+                            class="text-sm font-medium text-[#18a058] hover:underline"
                         >
                             View all notifications
                         </button>
@@ -248,7 +248,7 @@ onUnmounted(() => document.removeEventListener("click", onClickOutside));
         </div>
 
         <div
-            class="h-9 w-9 overflow-hidden rounded-full bg-sky-100 ring-2 ring-sky-100"
+            class="h-9 w-9 overflow-hidden rounded-full bg-[#e9f6ee] ring-2 ring-[#e9f6ee]"
         >
             <img
                 src="https://i.pravatar.cc/80?img=12"

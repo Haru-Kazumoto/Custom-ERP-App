@@ -3,64 +3,93 @@ import axios from "axios";
 import { useForm } from "@inertiajs/vue3";
 import type { PoDetailForSso, SsoItem } from "@/types/sub-sales-order";
 
-export function useSubSalesOrder() {
-    
+type PurchaseOrderResponse = {
+    id: number;
+    transaction_code: string;
+    transaction_type: string;
+    detail: {
+        tanggal_po?: string;
+        pemasok?: string;
+        jenis_pengiriman?: string;
+        alokasi?: string;
+        transportasi?: string;
+    };
+    items: SsoItem[];
+};
 
-    // ringkasan PO (hasil dari tombol Proses) untuk ditampilkan read-only
+export function useSubSalesOrder() {
     const poDetail = ref<PoDetailForSso | null>(null);
     const processing = ref(false);
     const error = ref<string | null>(null);
 
-    // form yang akan disubmit
     const form = useForm({
         purchase_order_id: null as number | null,
-        correlation_id: null as string | null,
-        description: "",
         no_bukti: "",
         no_so: "",
         tanggal_kirim: null as string | null,
+        description: "",
         items: [] as SsoItem[],
-        details: [] as any[],
-        ...poDetail.value
     });
 
-    async function processPo(po_number: string) {
+    function clearProcessedPo() {
+        poDetail.value = null;
+        form.purchase_order_id = null;
+        form.items = [];
+    }
+
+    async function processPo(poNumber: string) {
         processing.value = true;
         error.value = null;
+        clearProcessedPo();
+
         try {
-            const { data } = await axios.get<PoDetailForSso>(
-                `/purchase-orders/get-by-transaction-code?transaction_code=${po_number}`,
+            const { data } = await axios.get<PurchaseOrderResponse>(
+                "/purchase-orders/get-by-transaction-code",
+                { params: { transaction_code: poNumber } },
             );
-            poDetail.value = {
-                transaction_code: data.detail.transaction_code,
-                tanggal_po: data.detail.tanggal_po,
-                pemasok: data.detail.pemasok,
-                jenis_pengiriman: data.detail.jenis_pengiriman,
-                alokasi: data.detail.alokasi,
-                transportasi: data.detail.transportasi
+
+            if (data.transaction_type !== "PO") {
+                throw new Error("Dokumen yang dipilih bukan Purchase Order");
+            }
+
+            const detail: PoDetailForSso = {
+                id: data.id,
+                transaction_code: data.transaction_code,
+                tanggal_po: data.detail.tanggal_po ?? "",
+                pemasok: data.detail.pemasok ?? "",
+                jenis_pengiriman: data.detail.jenis_pengiriman ?? "",
+                alokasi: data.detail.alokasi ?? "",
+                transportasi: data.detail.transportasi ?? "",
+                items: data.items ?? [],
             };
 
-            Object.assign(form, poDetail.value);
-
-            // paste data PO → form
-            form.purchase_order_id = data.id;
-            form.correlation_id = data.correlation_id; 
-            form.items = data.items ?? [];
-            // ← [KAMU] kalau ada field lain dari PO yang mau ikut ke form, salin di sini
-        } catch (e: any) {
-            error.value =
-                e?.response?.data?.message ?? "Gagal memuat detail PO";
-            poDetail.value = null;
+            poDetail.value = detail;
+            form.purchase_order_id = detail.id;
+            form.items = detail.items;
+        } catch (e: unknown) {
+            error.value = axios.isAxiosError(e)
+                ? e.response?.data?.message ?? "Gagal memuat detail PO"
+                : e instanceof Error
+                  ? e.message
+                  : "Gagal memuat detail PO";
         } finally {
             processing.value = false;
         }
     }
 
     function reset() {
-        poDetail.value = null;
+        clearProcessedPo();
+        error.value = null;
         form.reset();
-        form.items = [];
     }
 
-    return { form, poDetail, processing, error, processPo, reset };
+    return {
+        form,
+        poDetail,
+        processing,
+        error,
+        processPo,
+        clearProcessedPo,
+        reset,
+    };
 }

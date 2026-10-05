@@ -1,6 +1,14 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { Clock, LogOut } from "lucide-vue-next";
+import { dashboardTone, type DashboardTone } from "@/lib/dashboardTone";
+
+const props = withDefaults(
+    defineProps<{ tone?: DashboardTone }>(),
+    { tone: "blue" },
+);
+
+const t = computed(() => dashboardTone(props.tone));
 
 const time = ref("00:00:00");
 let timer: number;
@@ -21,12 +29,15 @@ onUnmounted(() => clearInterval(timer));
 
 <template>
     <div
-        class="overflow-hidden rounded-2xl border border-slate-200 bg-[#0284c7] text-white shadow-sm"
+        class="overflow-hidden rounded-2xl border border-slate-200 text-white shadow-sm"
+        :class="t.solid"
     >
         <div class="relative p-5">
             <Clock class="absolute right-4 top-4 h-20 w-20 text-white/10" />
             <p class="text-3xl font-bold tracking-tight">{{ time }}</p>
-            <p class="mt-1 text-sm text-sky-100">32 min left before checkout</p>
+            <p class="mt-1 text-sm" :class="t.textSoft">
+                32 min left before checkout
+            </p>
             <button
                 class="mt-4 inline-flex items-center gap-2 rounded-lg bg-white/15 px-3 py-2 text-sm font-medium backdrop-blur hover:bg-white/25"
             >

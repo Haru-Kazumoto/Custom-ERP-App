@@ -30,7 +30,7 @@ class GetSubSalesOrderQuery
         $query->getCollection()->transform(function ($item) {
             $data = (object) array_merge(
                 (array) $item,
-                $this->transformDetails(json_decode($item->detail))
+                $this->transformDetails(json_decode($item->detail, true) ?? [])
             );
 
             unset($data->detail);
@@ -45,7 +45,13 @@ class GetSubSalesOrderQuery
     {
         return collect($details)
             ->mapWithKeys(function ($detail) {
-                return [strtolower(str_replace(" ", "_", $detail->name)) => $detail->value];
+                if (!is_array($detail) || !isset($detail['name'])) {
+                    return [];
+                }
+
+                return [
+                    strtolower(str_replace(' ', '_', $detail['name'])) => $detail['value'] ?? null,
+                ];
             })
             ->toArray();
     }

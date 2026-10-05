@@ -5,6 +5,8 @@ export interface MenuItem {
   key: string
   icon: string            // nama icon lucide-vue-next
   url: string
+  route_name: string | null   // route utama yang diwakili menu ini
+  active_routes: string[] | null // route turunan yang tetap menyalakan menu ini
   description: string | null
   is_active: boolean      // dari TINYINT(1)
   parent_id: number | null

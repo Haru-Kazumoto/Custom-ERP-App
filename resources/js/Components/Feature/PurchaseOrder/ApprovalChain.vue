@@ -1,12 +1,12 @@
 <script setup>
 import { computed } from "vue";
 import { NAvatar, NTooltip } from "naive-ui";
-import { Check, Clock, X, Minus } from "lucide-vue-next";
+import { Check, Clock, Minus } from "lucide-vue-next";
 
 /**
  * Data head hasil merge SQL (bukan array chain):
  *   last_approval  : nama approver terakhir yang bertindak (string, boleh null)
- *   status_approval: 'disetujui' | 'menunggu' | 'ditolak' | 'belum'
+ *   status_approval: 'APPROVED' | 'PENDING' | 'NEED_REVISION'
  */
 const props = defineProps({
     lastApproval: {
@@ -36,12 +36,6 @@ const meta = {
         label: "text-amber-700",
         icon: Clock,
     },
-    REJECTED: {
-        ring: "ring-red-500",
-        dot: "bg-red-500",
-        label: "text-red-700",
-        icon: X,
-    },
     NEED_REVISION: {
         ring: "ring-violet-500",
         dot: "bg-violet-500",
@@ -64,10 +58,6 @@ const statusLabel = computed(() => {
             return props.lastApproval
                 ? `Disetujui oleh ${props.lastApproval}`
                 : "Disetujui";
-        case "REJECTED":
-            return props.lastApproval
-                ? `Ditolak oleh ${props.lastApproval}`
-                : "Ditolak";
         case "PENDING":
             return props.lastApproval
                 ? `Menunggu ${props.lastApproval}`

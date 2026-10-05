@@ -1,0 +1,15 @@
+:80 {
+    root * /app/public
+
+    encode zstd gzip
+
+    request_body {
+        max_size 2048MB
+    }
+
+    php_server
+
+    log {
+        output stdout
+    }
+}

@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import DataTable from "@/Components/Common/DataTable.vue";
 import { columns } from "@/lib/procurementColumnsTable";
+import { dashboardTone } from "@/lib/dashboardTone";
+
+// Procurement memakai hijau default Naive UI; dashboard lain tetap biru.
+const t = dashboardTone("green");
 
 interface RecentDocument {
     id: number;
@@ -70,7 +74,7 @@ const documents: RecentDocument[] = [
             <h3 class="text-sm font-semibold text-slate-800">
                 Recent Documents
             </h3>
-            <button class="text-xs font-medium text-[#0284c7] hover:underline">
+            <button class="text-xs font-medium hover:underline" :class="t.text">
                 View all
             </button>
         </div>

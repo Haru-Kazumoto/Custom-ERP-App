@@ -3,10 +3,16 @@ import { FileX2 } from "lucide-vue-next";
 import type { SsoItem } from "@/types/sub-sales-order";
 import { NButton } from "naive-ui";
 
-const props = defineProps<{ items: SsoItem[] }>();
+defineProps<{
+    items: SsoItem[];
+    disabled?: boolean;
+}>();
+const emit = defineEmits<{
+    remove: [index: number];
+}>();
 
 function deleteItem(index: number) {
-    props.items.splice(index, 1);
+    emit("remove", index);
 }
 </script>
 
@@ -26,12 +32,13 @@ function deleteItem(index: number) {
                             Jumlah
                         </th>
                         <th class="px-4 py-2.5 font-medium">Kemasan</th>
+                        <th class="px-4 py-2.5 font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr
                         v-for="(item, i) in items"
-                        :key="item.product_id"
+                        :key="item.id"
                         class="border-t border-slate-50"
                     >
                         <td class="px-4 py-3 text-slate-400">{{ i + 1 }}</td>
@@ -51,6 +58,7 @@ function deleteItem(index: number) {
                             <NButton
                                 size="small"
                                 type="error"
+                                :disabled="disabled"
                                 @click="() => deleteItem(i)"
                             >
                                 Hapus
@@ -65,7 +73,7 @@ function deleteItem(index: number) {
         <div class="space-y-2 sm:hidden">
             <div
                 v-for="(item, i) in items"
-                :key="item.product_id"
+                :key="item.id"
                 class="rounded-xl border border-slate-100 p-3"
             >
                 <div class="flex items-start justify-between gap-2">
@@ -84,7 +92,15 @@ function deleteItem(index: number) {
                 <div
                     class="mt-2 flex items-center gap-3 border-t border-slate-50 pt-2 text-xs text-slate-500"
                 >
-                    <span>{{ item.quantity }} {{ item.unit }}</span>
+                    <span>{{ item.quantity }} {{ item.product_unit }}</span>
+                    <NButton
+                        size="small"
+                        type="error"
+                        :disabled="disabled"
+                        @click="deleteItem(i)"
+                    >
+                        Hapus
+                    </NButton>
                 </div>
             </div>
         </div>

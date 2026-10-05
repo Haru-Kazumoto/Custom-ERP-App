@@ -20,8 +20,8 @@ const IconComp = computed(
             cn(
                 'group flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 active
-                    ? 'bg-[#0284c7] text-white'
-                    : 'text-slate-600 hover:bg-sky-50 hover:text-[#0284c7]',
+                    ? 'bg-[#18a058] text-white'
+                    : 'text-slate-600 hover:bg-[#e9f6ee] hover:text-[#18a058]',
             )
         "
     >

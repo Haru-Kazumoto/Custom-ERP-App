@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, watch } from "vue";
 import { Head } from "@inertiajs/vue3";
 import Swal from "sweetalert2";
 import { capitalize, formatDate, formatRupiah } from "@/utils/format";
@@ -23,6 +23,8 @@ import {
     useNotification,
 } from "naive-ui";
 import HeaderPage from "@/Components/Common/HeaderPage.vue";
+import { Plus } from "lucide-vue-next";
+import type { PoItem } from "@/types/purchase-order";
 
 defineOptions({
     layout: AppLayout,
@@ -30,10 +32,33 @@ defineOptions({
 
 const props = defineProps<{
     po_number: string;
+    /**
+     * Hanya dikirim di mode revisi (`/purchase-orders/{id}/revise`).
+     *
+     * `undefined` di mode create, dan itu yang membedakan kedua mode di halaman
+     * ini: create tidak punya dokumen untuk diedit, revise punya.
+     */
+    purchaseOrder?: PurchaseOrderFormSource;
     suppliers: any[];
     transports: any[];
-    auth: { user: { name: string } };
+    auth: { user: { name: string; id: number } };
 }>();
+
+/**
+ * Bentuk `purchaseOrder` yang dipakai form: field yang dibutuhkan form
+ * diteruskan apa adanya dari `FindPurchaseOrderQuery`.
+ */
+type PurchaseOrderFormSource = {
+    id: number;
+    transaction_code: string;
+    payment_term: number | string | null;
+    due_date: string | null;
+    description: string | null;
+    details: Record<string, string | null>;
+    items: PoItem[];
+};
+
+const isRevise = computed(() => props.purchaseOrder !== undefined);
 
 const {
     form,
@@ -41,6 +66,7 @@ const {
     productLoading,
     selectedProductId,
     selectedProduct,
+    productVendorFilter,
     onProductSearch,
     draft,
     draftLineTotal,
@@ -55,14 +81,30 @@ const {
     total,
 } = usePurchaseOrder({
     poNumber: props.po_number,
-    fullname: props.auth.user.fullname,
+    // `auth.user` hanya berisi id, name, emp_id, email, profile_photo_path,
+    // role, sub_role. Tidak ada `fullname` — memakainya menghasilkan undefined.
+    fullname: props.auth.user.name,
+    mode: isRevise.value ? "revise" : "create",
+    initial: props.purchaseOrder
+        ? {
+              term_of_payment: Number(props.purchaseOrder.payment_term ?? 0),
+              due_date: props.purchaseOrder.due_date,
+              description: props.purchaseOrder.description,
+              details: props.purchaseOrder.details,
+              items: props.purchaseOrder.items,
+          }
+        : null,
 });
 
 // ---- select options ----
-const supplierOptions = props.suppliers.map((s: any) => ({
-    label: s.name,
-    value: s.name,
-}));
+// Principal disimpan sebagai NAMA (bukan id) supaya `transaction_details`
+// tetap berisi nama, sesuai yang dibaca halaman Show. Map di bawah hanya
+// dipakai untuk meneruskan `vendor_id` sebagai filter katalog.
+const supplierIdByName: Record<string, number> = {};
+const supplierOptions = props.suppliers.map((s: any) => {
+    if (s.name != null && s.id != null) supplierIdByName[s.name] = s.id;
+    return { label: s.name, value: s.name };
+});
 const transportOptions = props.transports.map((t: any) => ({
     label: t.name,
     value: t.name,
@@ -84,6 +126,18 @@ const ppnOptions = [
 
 const formRef = ref<FormInst | null>(null);
 const notification = useNotification();
+
+// Principal yang dipilih ikut membatasi katalog barang. `watch` di composable
+// memuat ulang daftar produk setiap nilainya berubah.
+watch(
+    () => form.transaction_detail.supplier,
+    (name) => {
+        productVendorFilter.value = name
+            ? (supplierIdByName[name] ?? null)
+            : null;
+    },
+    { immediate: true },
+);
 
 // Rules: 'blur' untuk input/select, 'change' supaya date/select revalidate saat dipilih.
 const rules: FormRules = {
@@ -247,6 +301,14 @@ function buildTransactionDetails() {
             data_type: "string",
         },
         {
+            // `employee_name` diisi di composable tapi selama ini tidak pernah
+            // ikut terkirim, jadi PIC purchase order tidak tercatat.
+            name: "Nama Petugas",
+            type: "PIC_NAME",
+            value: d.employee_name,
+            data_type: "string",
+        },
+        {
             name: "Harga Angkutan",
             type: "TRANSPORTATION_COST",
             value: d.transportation_cost || "0",
@@ -272,13 +334,18 @@ function handleSubmit() {
     buildTransactionDetails();
 
     Swal.fire({
-        title: "Memproses Purchase Order...",
+        title: isRevise.value
+            ? "Menyimpan revisi Purchase Order..."
+            : "Memproses Purchase Order...",
         text: "Data sedang disimpan",
         didOpen: () => Swal.showLoading(),
         // allowOutsideClick: false,
     });
 
-    form.post(route("purchase-order.store"), {
+    // Revisi memakai PUT ke dokumen yang sama: nomor PO tidak berubah, dan
+    // approval-nya diarsipkan lalu dimulai ulang dari Finance. Create tetap
+    // POST supaya generate nomor baru di server tidak terpicu.
+    const submitOptions = {
         preserveScroll: true,
         onSuccess: (page: any) => {
             Swal.close();
@@ -286,19 +353,38 @@ function handleSubmit() {
                 title: page.props.flash.success,
                 meta: "Data tersimpan",
                 closable: true,
-                duration: 3000
+                duration: 3000,
             });
-            form.reset("transaction_items", "description", "due_date");
-            form.transaction_items = [];
+
+            // Setelah create, form dikosongkan supaya nomor PO berikutnya tidak
+            // memakai dokumen yang sama. Setelah revisi tidak: user sudah
+            // diarahkan ke halaman detail oleh redirect server, dan mengosongkan
+            // form hanya akan berkedip kalau user menekan "kembali" di browser.
+            if (!isRevise.value) {
+                form.reset("transaction_items", "description", "due_date");
+                form.transaction_items = [];
+            }
         },
         onError: () => {
+            Swal.close();
             Swal.fire({
                 icon: "error",
-                title: "Gagal membuat PO",
+                title: isRevise.value ? "Gagal menyimpan revisi" : "Gagal membuat PO",
                 text: "Cek kembali isian form",
             });
         },
-    });
+    };
+
+    if (isRevise.value) {
+        form.put(
+            route("purchase-order.revise.update", props.purchaseOrder!.id),
+            submitOptions,
+        );
+
+        return;
+    }
+
+    form.post(route("purchase-order.store"), submitOptions);
 }
 
 // helper: bind use_tax (boolean) ke Select string
@@ -351,13 +437,34 @@ const sendDateTs = computed<number | null>({
 </script>
 
 <template>
-    <Head title="Purchase Order" />
+    <Head
+        :title="isRevise ? 'Revisi Purchase Order' : 'Purchase Order'"
+    />
 
     <div class="flex flex-col gap-5">
         <HeaderPage
-            title="Purchase Order"
-            subTitle="Pembuatan Purchase Order Baru"
+            :title="isRevise ? 'Revisi Purchase Order' : 'Purchase Order'"
+            :subTitle="
+                isRevise
+                    ? `Perbaiki ${form.document_code} lalu kirim ulang ke Finance`
+                    : 'Pembuatan Purchase Order Baru'
+            "
         />
+
+        <!--
+            Pada revisi, approval lama diarsipkan dan rantai baru dimulai dari
+            Finance. Dialog konfirmasi wajib menyebut efek itu, karena user akan
+            mengira approval yang sudah "dilewati"Finance/Marketing tetap berlaku.
+        -->
+        <div
+            v-if="isRevise"
+            class="rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm text-violet-800"
+        >
+            Nomor PO tetap
+            <span class="font-semibold">{{ form.document_code }}</span>
+            dan tidak bisa diubah. Setelah disimpan, semua persetujuan sebelumnya
+            diarsipkan dan approval dimulai ulang dari Finance.
+        </div>
 
         <!-- ===== Detail PO ===== -->
         <NCard
@@ -438,6 +545,7 @@ const sendDateTs = computed<number | null>({
 
             <NForm
                 ref="formRef"
+                size="large"
                 :model="form"
                 :rules="rules"
                 :show-label="true"
@@ -711,7 +819,8 @@ const sendDateTs = computed<number | null>({
         >
             <div class="mt-4 flex justify-end">
                 <NButton
-                    class="bg-[#0284c7] hover:bg-[#0369a1] text-white"
+                    type="primary"
+                    size="large"
                     :disabled="form.processing"
                     @click="openConfirm"
                 >
@@ -731,14 +840,30 @@ const sendDateTs = computed<number | null>({
     >
         <template #header>
             <div class="flex flex-col">
-                <span class="text-base font-semibold text-slate-800"
-                    >Konfirmasi Purchase Order</span
-                >
+                <span class="text-base font-semibold text-slate-800">{{
+                    isRevise
+                        ? "Konfirmasi Revisi Purchase Order"
+                        : "Konfirmasi Purchase Order"
+                }}</span>
                 <span class="text-sm font-normal text-slate-400">{{
                     form.document_code
                 }}</span>
             </div>
         </template>
+
+        <!--
+            Efek samping revisi tidak bisa disimpulkan dari isi form — isinya
+            sama persis dengan create. Efeknya terjadi di approval, jadi
+            dinyatakan eksplisit supaya tidak ada kejutan setelah menekan
+            tombol.
+        -->
+        <p
+            v-if="isRevise"
+            class="mb-4 rounded-xl border border-violet-100 bg-violet-50/60 px-3 py-2 text-xs text-violet-800"
+        >
+            Persetujuan yang sudah diberikan akan diarsipkan, dan approval
+            dimulai ulang dari Finance dengan isi PO yang baru.
+        </p>
 
         <div class="max-h-[70vh] overflow-y-auto px-1 py-1 sm:px-2">
             <!-- ringkasan singkat di atas (chip) -->
@@ -988,7 +1113,7 @@ const sendDateTs = computed<number | null>({
                     :disabled="form.processing"
                     @click="handleSubmit"
                 >
-                    Simpan Purchase Order
+                    {{ isRevise ? "Simpan Revisi" : "Simpan Purchase Order" }}
                 </NButton>
             </div>
         </template>

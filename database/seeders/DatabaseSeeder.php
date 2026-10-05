@@ -24,11 +24,21 @@ class DatabaseSeeder extends Seeder
         // ]);
 
         $this->call([
-            // RoleSeeder::class,
-            // SubRoleSeeder::class,
-            // UserSeeder::class,
-            // TradePromoSeeder::class,
-            TradePromoProductSeeder::class
+            RoleSeeder::class,
+            SubRoleSeeder::class,
+            UserSeeder::class,
+            // Tabel referensi produk. Harus jalan sebelum ProductSeeder karena
+            // produknya menunjuk `product_type_id` / `product_sub_type_id`.
+            ProductTypeSeeder::class,
+            ProductSubTypeSeeder::class,
+            // Vendor juga dirujuk `products.vendor_id`, jadi harus ada dulu.
+            VendorSeeder::class,
+            ProductSeeder::class,
+            TradePromoSeeder::class,
+            // Pivot promo–produk. Keduanya insertOrIgnore di unique index
+            // `(trade_promo_id, product_id)`, jadi aman dijalankan berulang.
+            ProductTradePromoSeeder::class,
+            TradePromoProductSeeder::class,
         ]);
     }
 }

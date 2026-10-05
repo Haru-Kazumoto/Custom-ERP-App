@@ -10,4 +10,7 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
         Route::get('', [SubSalesOrderController::class, 'index'])->name('index');
         Route::get('/create', [SubSalesOrderController::class, 'create'])->name('create');
         Route::post('/store', [SubSalesOrderController::class, 'store'])->name('store');
+        Route::get('/{id}', [SubSalesOrderController::class, 'show'])
+            ->whereNumber('id')
+            ->name('show');
     });
