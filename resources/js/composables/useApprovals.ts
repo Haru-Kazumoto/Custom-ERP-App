@@ -2,7 +2,10 @@ import { ref } from "vue";
 import axios from "axios";
 import type { TransactionApproval } from "@/types/purchase-order";
 
-export function useApprovals(transactionId: number) {
+export function useApprovals(
+    transactionId: number,
+    options: { url?: string } = {},
+) {
     const approvals = ref<TransactionApproval[]>([]);
     const loading = ref(false);
     const error = ref<string | null>(null);
@@ -12,7 +15,7 @@ export function useApprovals(transactionId: number) {
         error.value = null;
         try {
             const { data } = await axios.get<TransactionApproval[]>(
-                `/purchase-orders/${transactionId}/approvals`,
+                options.url ?? `/purchase-orders/${transactionId}/approvals`,
             );
             // urutkan berdasarkan step
             approvals.value = [...data].sort((a, b) => a.order - b.order);

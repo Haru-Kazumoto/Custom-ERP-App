@@ -2,11 +2,13 @@
 
 namespace App\Modules\Approval\Controllers;
 
+use App\Enum\TransactionType;
 use App\Http\Controllers\Controller;
 use App\Modules\Approval\Actions\DecideApprovalAction;
 use App\Modules\Approval\DTOs\DecideApprovalDTO;
 use App\Modules\Approval\Exceptions\ApprovalForbiddenException;
 use App\Modules\Approval\Queries\GetPurchaseOrderApprovalQueueQuery;
+use App\Modules\DeliveryOrder\Queries\GetDeliveryOrderApprovalQueueQuery;
 use App\Modules\Roles\Queries\GetOneRoleFromUserQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -65,6 +67,62 @@ class ApprovalController extends Controller
         DecideApprovalAction $action,
         GetOneRoleFromUserQuery $roles,
     ): JsonResponse {
+        return $this->decide($request, $transaction, TransactionType::PurchaseOrder, 'Purchase Order', $action, $roles);
+    }
+
+    /**
+     * Antrean approval Delivery Order untuk role pemohon.
+     *
+     * Query dan halamannya terpisah dari PO karena membaca view DO — sumber
+     * "current step" yang sama (`ROW_NUMBER`) tapi untuk
+     * `transaction_type = 'DO'`.
+     */
+    public function deliveryOrders(
+        Request $request,
+        GetDeliveryOrderApprovalQueueQuery $queue,
+        GetOneRoleFromUserQuery $roles,
+    ): Response {
+        $role = $roles->execute((int) $request->user()->id);
+
+        $filters = [
+            'search' => $request->string('search')->toString(),
+            'date_from' => $request->date('date_from')?->toDateString(),
+            'date_to' => $request->date('date_to')?->toDateString(),
+        ];
+
+        return Inertia::render('Approval/DeliveryOrder/Index', [
+            'queue' => $queue->execute((string) $role->name, $filters),
+            'filters' => [
+                'search' => $filters['search'],
+                'date_from' => (string) $request->string('date_from')->toString(),
+                'date_to' => (string) $request->string('date_to')->toString(),
+            ],
+        ]);
+    }
+
+    public function decideDeliveryOrder(
+        Request $request,
+        int $transaction,
+        DecideApprovalAction $action,
+        GetOneRoleFromUserQuery $roles,
+    ): JsonResponse {
+        return $this->decide($request, $transaction, TransactionType::DeliveryOrder, 'Delivery Order', $action, $roles);
+    }
+
+    /**
+     * Penyimpanan keputusan bersama PO dan DO: aturan validasi, pemilihan
+     * role pemohon, dan pemetaan error identik — yang berbeda hanya tipe
+     * dokumen yang boleh diputuskan, sehingga `DecideApprovalAction` tidak
+     * pernah menerima tipe yang salah walau route DO salah panggil method.
+     */
+    private function decide(
+        Request $request,
+        int $transaction,
+        TransactionType $expectedType,
+        string $documentLabel,
+        DecideApprovalAction $action,
+        GetOneRoleFromUserQuery $roles,
+    ): JsonResponse {
         $status = (string) $request->input('status');
 
         try {
@@ -100,7 +158,7 @@ class ApprovalController extends Controller
                 proceed_by: (int) $user->id,
                 status: $validated['status'],
                 description: $validated['description'] ?? null,
-            ));
+            ), $expectedType);
         } catch (ApprovalForbiddenException $exception) {
             // Role pemohon bukan pemilik langkah yang sedang berjalan. Ini
             // masalah otorisasi, bukan input salah, jadi 403 bukan 422.
@@ -111,8 +169,8 @@ class ApprovalController extends Controller
 
         return response()->json([
             'message' => $validated['status'] === DecideApprovalDTO::STATUS_APPROVED
-                ? 'Purchase Order disetujui.'
-                : 'Purchase Order ditandai perlu revisi.',
+                ? "{$documentLabel} disetujui."
+                : "{$documentLabel} ditandai perlu revisi.",
         ]);
     }
 }

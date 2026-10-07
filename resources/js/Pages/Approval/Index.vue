@@ -19,9 +19,9 @@ const documents = [
     },
     {
         label: "Delivery Order",
-        description: "Persetujuan penerimaan barang dari pemasok",
-        available: false,
-        route: null,
+        description: "Persetujuan pengiriman barang ke pelanggan",
+        available: true,
+        route: "approvals.index.delivery-orders",
     },
     {
         label: "Faktur",

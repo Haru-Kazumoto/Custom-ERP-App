@@ -8,10 +8,23 @@ import type {
     ApprovalDecisionStatus,
 } from "@/types/approval";
 
-const props = defineProps<{
-    transactionId: number;
-    context: ApprovalDecisionContext | null;
-}>();
+const props = withDefaults(
+    defineProps<{
+        transactionId: number;
+        context: ApprovalDecisionContext | null;
+        documentLabel?: string;
+        decisionUrl?: string;
+        reloadProps?: string[];
+        revisionHint?: string;
+    }>(),
+    {
+        documentLabel: "Purchase Order",
+        decisionUrl: undefined,
+        reloadProps: undefined,
+        revisionHint:
+            "Pembuat Purchase Order akan menerima permintaan ini di halaman Revisi PO dengan nomor yang sama.",
+    },
+);
 
 // Setelah keputusan tersimpan, parent wajib memuat ulang `ApprovalTimeline`.
 // `router.reload({ only: [...] })` di dalam composable hanya menyegarkan props
@@ -19,7 +32,10 @@ const props = defineProps<{
 // ter-refresh dan akan menampilkan data lama.
 const emit = defineEmits<{ (e: "decided", status: ApprovalDecisionStatus): void }>();
 
-const { submitting, error, decide } = useApprovalDecision(props.transactionId);
+const { submitting, error, decide } = useApprovalDecision(props.transactionId, {
+    decisionUrl: props.decisionUrl,
+    reloadProps: props.reloadProps,
+});
 
 const mode = ref<ApprovalDecisionStatus | null>(null);
 const reason = ref("");
@@ -47,8 +63,9 @@ const close = () => {
 };
 
 const modeLabel = computed(() => {
-    if (mode.value === "NEED_REVISION") return "Minta Revisi Purchase Order";
-    return "Setujui Purchase Order";
+    if (mode.value === "NEED_REVISION")
+        return `Minta Revisi ${props.documentLabel}`;
+    return `Setujui ${props.documentLabel}`;
 });
 
 // `NEED_REVISION` selalu butuh alasan: kalau kosong, pemohon tidak akan tahu
@@ -203,8 +220,8 @@ function onKeydown(event: KeyboardEvent) {
             @keydown="onKeydown"
         >
             <p class="text-sm text-slate-600">
-                Purchase Order akan diteruskan ke tahap approval berikutnya.
-                Tindakan ini tidak bisa dibatalkan.
+                {{ documentLabel }} akan diteruskan ke tahap approval
+                berikutnya. Tindakan ini tidak bisa dibatalkan.
             </p>
 
             <p
@@ -241,8 +258,7 @@ function onKeydown(event: KeyboardEvent) {
         >
             <p class="mb-3 text-sm text-slate-600">
                 Alasan wajib diisi dan akan tampil di riwayat persetujuan.
-                Pembuat Purchase Order akan menerima permintaan ini di halaman
-                Revisi PO dengan nomor yang sama.
+                {{ revisionHint }}
             </p>
 
             <NInput

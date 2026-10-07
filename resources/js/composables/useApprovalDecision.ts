@@ -11,7 +11,10 @@ import type { ApprovalDecisionStatus } from "@/types/approval";
  * aman daripada patch state lokal: keputusan bisa jadi sudah tidak berlaku karena
  * ada yang memutuskan duluan, dan server sudah mengembalikan pesan konflik itu.
  */
-export function useApprovalDecision(transactionId: number) {
+export function useApprovalDecision(
+    transactionId: number,
+    options: { decisionUrl?: string; reloadProps?: string[] } = {},
+) {
     const submitting = ref<ApprovalDecisionStatus | null>(null);
     const error = ref<string | null>(null);
 
@@ -23,12 +26,18 @@ export function useApprovalDecision(transactionId: number) {
         error.value = null;
 
         try {
-            await axios.post(`/approvals/purchase-orders/${transactionId}/decision`, {
-                status,
-                description: description?.trim() || null,
-            });
+            await axios.post(
+                options.decisionUrl ??
+                    `/approvals/purchase-orders/${transactionId}/decision`,
+                {
+                    status,
+                    description: description?.trim() || null,
+                },
+            );
 
-            router.reload({ only: ["purchaseOrder", "approvalContext"] });
+            router.reload({
+                only: options.reloadProps ?? ["purchaseOrder", "approvalContext"],
+            });
         } catch (e: any) {
             error.value = readError(e);
             return false;

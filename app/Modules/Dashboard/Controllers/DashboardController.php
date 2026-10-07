@@ -3,6 +3,8 @@
 namespace App\Modules\Dashboard\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Dashboard\Queries\GetSalesDashboardDataQuery;
+use App\Modules\Dashboard\Queries\GetWarehouseDashboardDataQuery;
 use App\Modules\Finance\Controllers\FinanceDashboardController;
 use App\Modules\PurchaseOrder\Queries\GetTenLatestPurchaseOrderQueries;
 use App\Modules\Roles\Queries\GetOneRoleFromUserQuery;
@@ -15,12 +17,14 @@ use Inertia\Response;
 class DashboardController extends Controller
 {
     public function __construct(
-        private GetTenLatestPurchaseOrderQueries $get_latest_purchase_orders
+        private GetTenLatestPurchaseOrderQueries $get_latest_purchase_orders,
+        private GetSalesDashboardDataQuery $sales_dashboard_data,
+        private GetWarehouseDashboardDataQuery $warehouse_dashboard_data
     ) {}
 
-    private function renderSalesDashboard(): Response
+    private function renderSalesDashboard(int $userId): Response
     {
-        return Inertia::render('Dashboard/Sales');
+        return Inertia::render('Dashboard/Sales', $this->sales_dashboard_data->execute($userId));
     }
 
     private function renderMarketingDashboard(): Response
@@ -57,7 +61,7 @@ class DashboardController extends Controller
 
     private function renderWarehouseDashboard(): Response
     {
-        return Inertia::render('Dashboard/Warehouse');
+        return Inertia::render('Dashboard/Warehouse', $this->warehouse_dashboard_data->execute());
     }
 
     private function renderArControllerDashboard(): Response
@@ -87,7 +91,7 @@ class DashboardController extends Controller
 
         return match ($role->code) {
             'admin' => $this->renderAdminDashboard(),
-            'sales' => $this->renderSalesDashboard(),
+            'sales' => $this->renderSalesDashboard((int) $request->user()->id),
             'marketing' => $this->renderMarketingDashboard(),
             'procurement' => $this->renderProcurementDashboard(),
             'business_development' => $this->renderBusinessDevelopmentDashboard(),

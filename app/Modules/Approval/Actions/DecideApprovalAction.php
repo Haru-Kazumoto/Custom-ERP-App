@@ -28,8 +28,14 @@ class DecideApprovalAction
      * @throws RuntimeException kalau status tidak dikenali, langkah sudah
      *                          diproses orang lain, atau dokumen sedang berhenti
      *                          di langkah sebelumnya.
+     *
+     * `expectedType` membatasi endpoint ini ke satu tipe dokumen. Route
+     * decision berada di namespace masing-masing (purchase-orders /
+     * delivery-orders) tapi parameternya bebas angka apa saja, jadi tanpa cek
+     * ini keputusan Delivery Order bisa disimpan lewat endpoint Purchase Order
+     * dan sebaliknya.
      */
-    public function execute(DecideApprovalDTO $dto): void
+    public function execute(DecideApprovalDTO $dto, TransactionType $expectedType = TransactionType::PurchaseOrder): void
     {
         // Controller sudah memvalidasi `Rule::in(DecideApprovalDTO::STATUSES)`,
         // tapi action ini tidak selalu dipanggil dari HTTP — harness, queue, dan
@@ -45,20 +51,17 @@ class DecideApprovalAction
             throw new RuntimeException('Alasan wajib diisi untuk meminta revisi.');
         }
 
-        DB::transaction(function () use ($dto) {
-            // Route ini berada di namespace purchase-orders, tapi parametermya
-            // bebas angka apa saja. Tanpa cek tipe dokumen, approval Delivery
-            // Order / Faktur bisa diputuskan lewat endpoint yang sama.
+        DB::transaction(function () use ($dto, $expectedType) {
             $type = DB::table('transactions')
                 ->where('id', $dto->transaction_id)
                 ->value('transaction_type');
 
             if ($type === null) {
-                throw new RuntimeException('Purchase Order tidak ditemukan.');
+                throw new RuntimeException("Dokumen {$expectedType->value} tidak ditemukan.");
             }
 
-            if ($type !== TransactionType::PurchaseOrder->value) {
-                throw new RuntimeException('Dokumen ini bukan Purchase Order.');
+            if ($type !== $expectedType->value) {
+                throw new RuntimeException("Dokumen ini bukan {$expectedType->value}.");
             }
 
             $approvals = DB::table('transaction_approvals')

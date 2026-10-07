@@ -13,6 +13,9 @@ Route::middleware(['auth:sanctum', config('jetstream.auth_session'), 'verified']
 
 require __DIR__.'/approvals.php';
 require __DIR__.'/purchase_order.php';
+require __DIR__.'/delivery_order.php';
 require __DIR__.'/sub_sales_order.php';
+require __DIR__.'/goods_receipt.php';
+require __DIR__.'/stocks.php';
 require __DIR__.'/product.php';
 require __DIR__.'/menus.php';

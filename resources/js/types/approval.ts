@@ -47,6 +47,20 @@ export interface PurchaseOrderApprovalQueue {
     to: number | null;
 }
 
+/**
+ * Satu baris antrean approval Delivery Order — kontrak yang sama dengan
+ * `PurchaseOrderApprovalQueueItem`, hanya `supplier` diganti `customer` dan
+ * `delivery` (jenis pengiriman) ditambahkan oleh `GetDeliveryOrderApprovalQueueQuery`.
+ */
+export interface DeliveryOrderApprovalQueueItem
+    extends Omit<
+        PurchaseOrderApprovalQueueItem,
+        "supplier" | "pic_name"
+    > {
+    customer: string | null;
+    delivery: string | null;
+}
+
 export interface ApprovalQueueFilters {
     search: string;
     date_from: string;
