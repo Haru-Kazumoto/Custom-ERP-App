@@ -20,9 +20,18 @@ class GetEligiblePromosQuery
 {
     /**
      * @param  int[]  $productIds
+     * @param  bool  $within_active_period  false = abaikan `start_date`/
+     *                                       `end_date`. Dipakai membaca ulang
+     *                                       promo dokumen lama (form revisi),
+     *                                       di mana promo yang sudah lewat
+     *                                       tetap harus tampil - kalau tidak,
+     *                                       promo hilang dari form dan submit
+     *                                       berikutnya mengubah total tanpa
+     *                                       pemberitahuan. Jalur submit selalu
+     *                                       memakai `true`.
      * @return array<string, object>  Keyed by "{product_id}:{promo_product_id}".
      */
-    public function execute(array $productIds, int $customerId): array
+    public function execute(array $productIds, int $customerId, bool $within_active_period = true): array
     {
         if ($productIds === []) {
             return [];
@@ -38,8 +47,10 @@ class GetEligiblePromosQuery
                 $query->whereNull('app.assigned_customer_promo_id')
                     ->orWhere('acp.customer_id', $customerId);
             })
-            ->where('pp.start_date', '<=', now())
-            ->where('pp.end_date', '>=', now())
+            ->when($within_active_period, function ($query) {
+                $query->where('pp.start_date', '<=', now())
+                    ->where('pp.end_date', '>=', now());
+            })
             ->get([
                 'app.id as assigned_id',
                 'app.product_id',

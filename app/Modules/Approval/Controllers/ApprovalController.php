@@ -12,6 +12,7 @@ use App\Modules\DeliveryOrder\Queries\GetDeliveryOrderApprovalQueueQuery;
 use App\Modules\Roles\Queries\GetOneRoleFromUserQuery;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -91,7 +92,11 @@ class ApprovalController extends Controller
         ];
 
         return Inertia::render('Approval/DeliveryOrder/Index', [
-            'queue' => $queue->execute((string) $role->name, $filters),
+            'queue' => $queue->execute(
+                (string) $role->name,
+                $this->userSubRoleName($request),
+                $filters,
+            ),
             'filters' => [
                 'search' => $filters['search'],
                 'date_from' => (string) $request->string('date_from')->toString(),
@@ -158,6 +163,7 @@ class ApprovalController extends Controller
                 proceed_by: (int) $user->id,
                 status: $validated['status'],
                 description: $validated['description'] ?? null,
+                sub_role_id: $user->sub_role_id !== null ? (int) $user->sub_role_id : null,
             ), $expectedType);
         } catch (ApprovalForbiddenException $exception) {
             // Role pemohon bukan pemilik langkah yang sedang berjalan. Ini
@@ -172,5 +178,21 @@ class ApprovalController extends Controller
                 ? "{$documentLabel} disetujui."
                 : "{$documentLabel} ditandai perlu revisi.",
         ]);
+    }
+
+    /**
+     * Nama sub-role pemohon (null kalau user tanpa sub-role) — dipakai
+     * antrean DO untuk menyaring langkah yang menyasar sub-role tertentu
+     * (rantai sales, marketing DNP/DKU).
+     */
+    private function userSubRoleName(Request $request): ?string
+    {
+        $subRoleId = $request->user()->sub_role_id;
+
+        if ($subRoleId === null) {
+            return null;
+        }
+
+        return DB::table('sub_roles')->where('id', $subRoleId)->value('name');
     }
 }

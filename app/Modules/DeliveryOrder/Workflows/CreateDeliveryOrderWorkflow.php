@@ -23,11 +23,17 @@ class CreateDeliveryOrderWorkflow
      * dokumen dibatalkan — tidak ada DO setengah jadi yang sudah mengurangi
      * stok.
      *
+     * @param  int  $creator_id  Pembuat; menentukan rantai approval sales
+     *                            (via sub-role pembuat) dan penomoran langkah.
+     * @param  bool  $needs_bd_approval  Ada baris harga/diskon manual —
+     *                                    menyalakan langkah Business
+     *                                    Development di rantai.
+     *
      * @return \App\Models\Transaction
      */
-    public function execute(CreateDeliveryOrderDTO $dto)
+    public function execute(CreateDeliveryOrderDTO $dto, int $creator_id, bool $needs_bd_approval)
     {
-        return DB::transaction(function () use ($dto) {
+        return DB::transaction(function () use ($dto, $creator_id, $needs_bd_approval) {
             $created = $this->create_action->execute($dto);
 
             $this->stock_allocator->allocate(
@@ -36,7 +42,11 @@ class CreateDeliveryOrderWorkflow
                 $created['lines'],
             );
 
-            $this->generate_approval_action->execute($created['transaction']->id);
+            $this->generate_approval_action->execute(
+                $created['transaction']->id,
+                $creator_id,
+                $needs_bd_approval,
+            );
 
             return $created['transaction'];
         });

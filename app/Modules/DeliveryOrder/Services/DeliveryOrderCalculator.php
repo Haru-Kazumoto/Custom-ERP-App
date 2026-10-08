@@ -56,6 +56,7 @@ class DeliveryOrderCalculator
      *         base_price: float,
      *         total_price: float,
      *         promo_product_id: int|null,
+     *         use_manual_price: bool,
      *         unit_price_before_discount: float,
      *         unit_price_after_discount: float,
      *         stages: array<int, array<string, mixed>>
@@ -79,8 +80,9 @@ class DeliveryOrderCalculator
             $product = $this->productName($item->product_id);
 
             // Harga daftar (product_prices) selalu dihitung: menjadi harga
-            // jual di mode otomatis, dan batas atas di mode manual — harga
-            // manual boleh turun, tidak boleh melebihi harga daftar.
+            // jual di mode otomatis, dan lantai di mode manual — harga
+            // manual wajib sama dengan atau lebih tinggi dari harga daftar,
+            // tidak boleh turun darinya.
             $catalog = $this->prices->resolve(
                 $item->product_id,
                 $dto->shipping_id,
@@ -123,6 +125,9 @@ class DeliveryOrderCalculator
                 'base_price' => $basePrice,
                 'total_price' => $gross,
                 'promo_product_id' => $item->promo_product_id,
+                // Disimpan per baris supaya form revisi bisa menampilkan
+                // kembali mode harga yang sama seperti saat dokumen dibuat.
+                'use_manual_price' => $item->use_manual_price,
                 'unit_price_before_discount' => $this->round($priceBefore),
                 'unit_price_after_discount' => $this->round($finalUnit),
                 'stages' => $stages,
@@ -139,10 +144,10 @@ class DeliveryOrderCalculator
     }
 
     /**
-     * Harga manual sebuah baris: wajib terisi dan tidak boleh melebihi harga
-     * daftar untuk segmen/pengiriman yang sama — form hanya mengizinkan harga
-     * turun, dan aturan yang sama ditegakkan di sini supaya payload hasil
-     * suntingan tidak bisa menaikkan harga jual.
+     * Harga manual sebuah baris: wajib terisi dan tidak boleh lebih rendah
+     * dari harga daftar untuk segmen/pengiriman yang sama — form hanya
+     * mengizinkan harga naik, dan aturan yang sama ditegakkan di sini
+     * supaya payload hasil suntingan tidak bisa menurunkan harga jual.
      */
     private function manualPrice(float $unitPrice, float $catalogPrice, string $product): float
     {
@@ -152,11 +157,11 @@ class DeliveryOrderCalculator
             throw new RuntimeException("Harga manual untuk produk \"{$product}\" belum diisi.");
         }
 
-        if ($price > $this->round($catalogPrice)) {
-            $max = number_format($catalogPrice, 2, ',', '.');
+        if ($price < $this->round($catalogPrice)) {
+            $min = number_format($catalogPrice, 2, ',', '.');
 
             throw new RuntimeException(
-                "Harga manual untuk produk \"{$product}\" melebihi harga daftar (maksimal Rp{$max}).",
+                "Harga manual untuk produk \"{$product}\" di bawah harga daftar (minimal Rp{$min}).",
             );
         }
 

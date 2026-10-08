@@ -57,7 +57,7 @@ export interface DeliveryOrderItem {
     /**
      * Mode harga baris ini — dipilih per produk di section penginputan.
      * false = harga daftar (`product_prices`), true = harga manual yang
-     * dibatasi tidak boleh melebihi harga daftar.
+     * dibatasi tidak boleh turun dari harga daftar.
      */
     use_manual_price: boolean;
     /** Snapshot konfigurasi promo untuk preview diskon cascading. */
@@ -120,12 +120,29 @@ export interface DeliveryOrderItemRow {
     /** Harga satuan bruto hasil promo (turunan `total_price / quantity`). */
     unit_price: number;
     promo_product_id: number | null;
+    /**
+     * Mode harga baris ini saat dokumen dibuat — kolom
+     * `transaction_items.use_manual_price`. Form revisi harus menampilkan
+     * kembali baris dalam mode yang sama, bukan menebak dari selisih harga.
+     */
+    use_manual_price: boolean;
     product_name: string | null;
     product_unit: string | null;
     product_category: string | null;
     product_code: string | null;
     promo_name: string | null;
     promo_code: string | null;
+    /**
+     * Snapshot konfigurasi promo untuk form revisi (bentuk sama dengan
+     * payload `GET /delivery-order/products`). Terisi selama baris promo
+     * masih ada di `assigned_products_promo`, tanpa memeriksa periode aktif
+     * — promo yang sudah lewat tanggal tetap harus tampil di form, bukan
+     * hilang diam-diam dan mengubah total saat submit.
+     *
+     * null untuk baris tanpa promo (dan untuk baris promo yang konfigurasinya
+     * sudah dihapus dari database).
+     */
+    promo: DeliveryPromo | null;
     /** Rincian per tahap; kosong untuk baris tanpa promo. */
     discounts: DeliveryDiscountStage[];
     /** Harga satuan sebelum promo (stage pertama); null bila tanpa promo. */

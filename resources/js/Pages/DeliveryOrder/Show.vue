@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted } from "vue";
-import { Head } from "@inertiajs/vue3";
-import { NAlert, NCard, NTag } from "naive-ui";
+import { Head, router } from "@inertiajs/vue3";
+import { NAlert, NButton, NCard, NIcon, NTag } from "naive-ui";
+import { Pencil } from "lucide-vue-next";
 import { formatDate, formatRupiah } from "@/utils/format";
 import { useApprovals } from "@/composables/useApprovals";
 import AppLayout from "@/Layouts/AppLayout.vue";
@@ -43,6 +44,26 @@ const revisionReason = computed(
             (step) => step.status === NEED_REVISION,
         )?.description ?? null,
 );
+
+/**
+ * Hak membuka form revisi hanya milik pembuat dokumen.
+ *
+ * Status sudah dipegang `needsRevision`; sengaja cuma membandingkan
+ * `created_by` dengan user login karena `DeliveryOrderController::revise()`
+ * dan `ReviseDeliveryOrderAction` sudah menegakkan hal yang sama — ini
+ * expedience UX, bukan pengganti otorisasi.
+ */
+const canRevise = computed(
+    () =>
+        needsRevision.value &&
+        props.deliveryOrder.created_by === props.auth.user.id,
+);
+
+function reviseDo() {
+    router.get(route("delivery-order.revise", props.deliveryOrder.id), {}, {
+        preserveScroll: true,
+    });
+}
 
 const detailRows = computed(() => {
     const rows = [
@@ -138,16 +159,31 @@ const hasDiscount = computed(
                 </template>
 
                 <p v-if="revisionReason" class="text-sm">
-                    “{{ revisionReason }}”
+                    "{{ revisionReason }}"
                 </p>
                 <p v-else class="text-sm">
                     Approver meminta dokumen ini diperbaiki.
                 </p>
 
-                <p class="mt-2 text-sm">
-                    Modul revisi Delivery Order belum tersedia — dokumen ini
-                    ditandai perlu perbaikan oleh pembuat/approver terkait.
-                </p>
+                <div class="mt-3 flex flex-wrap items-center gap-3">
+                    <NButton
+                        v-if="canRevise"
+                        type="primary"
+                        size="small"
+                        class="bg-[#0284c7] hover:bg-[#0369a1]"
+                        @click="reviseDo"
+                    >
+                        <template #icon>
+                            <NIcon :component="Pencil" />
+                        </template>
+
+                        Revisi Delivery Order
+                    </NButton>
+                    <p v-else class="text-sm text-slate-500">
+                        Hanya pembuat dokumen yang dapat membuka form revisi
+                        dokumen ini.
+                    </p>
+                </div>
             </NAlert>
 
             <!-- Grid: konten kiri (2 kolom), approval kanan (1 kolom) -->

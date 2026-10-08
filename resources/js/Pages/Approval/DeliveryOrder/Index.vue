@@ -232,6 +232,12 @@ function openDetail(item: DeliveryOrderApprovalQueueItem) {
                                         Tahap {{ item.current_approval_order }}
                                         ·
                                         {{ item.current_approval_role ?? "-" }}
+                                        <span
+                                            v-if="item.current_approval_sub_role"
+                                        >
+                                            –
+                                            {{ item.current_approval_sub_role }}
+                                        </span>
                                     </p>
                                     <NTag
                                         size="small"

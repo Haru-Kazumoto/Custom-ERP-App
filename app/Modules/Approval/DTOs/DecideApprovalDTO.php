@@ -42,6 +42,11 @@ class DecideApprovalDTO
         public readonly int $proceed_by,
         public readonly string $status,
         public readonly ?string $description,
+        // Sub-role pemohon: langkah approval bisa menyasar sub-role tertentu
+        // (mis. rantai sales Salesman → Sales Supervisor → Sales Manager, atau
+        // Marketing DNP vs DKU). Langkah tanpa sub-role tetap terbuka untuk
+        // seluruh pemilik role-nya.
+        public readonly ?int $sub_role_id = null,
     ) {}
 
     /**

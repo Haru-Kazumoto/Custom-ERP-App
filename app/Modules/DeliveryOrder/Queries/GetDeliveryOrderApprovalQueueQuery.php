@@ -21,9 +21,14 @@ use Illuminate\Support\Facades\DB;
  */
 class GetDeliveryOrderApprovalQueueQuery
 {
-    public function execute(string $roleName, array $filter = []): LengthAwarePaginator
+    /**
+     * @param  string|null  $sub_role_name  Sub-role pemohon; langkah ber-sub-role
+     *                                      (rantai sales, marketing DNP/DKU)
+     *                                      hanya terlihat pada pemiliknya.
+     */
+    public function execute(string $roleName, ?string $subRoleName = null, array $filter = []): LengthAwarePaginator
     {
-        $actionable = $this->actionableExpression($roleName);
+        $actionable = $this->actionableExpression($roleName, $subRoleName);
 
         $query = DB::table('v_get_delivery_orders_with_approval as v')
             ->join('transactions as tx', 'tx.id', '=', 'v.id')
@@ -80,13 +85,20 @@ class GetDeliveryOrderApprovalQueueQuery
     /**
      * Langkah yang sedang berjalan milik role ini dan belum diputuskan.
      *
+     * Langkah tanpa sub-role terbuka untuk seluruh role-nya (aturan yang sama
+     * dengan `DecideApprovalAction`), jadi antrean PO/DO lama tidak berubah.
+     * Langkah ber-sub-role hanya cocok bila pemilik sub-role persis — tanpa
+     * ini salesman melihat langkah sales supervisor dan bisa menekan tombol
+     * approve yang sebenarnya bukan miliknya.
+     *
      * @return array{0: string, 1: array<int, mixed>}
      */
-    private function actionableExpression(string $roleName): array
+    private function actionableExpression(string $roleName, ?string $subRoleName): array
     {
         return [
-            '(v.current_approval_role = ? and v.current_approval_status = ?)',
-            [$roleName, 'PENDING'],
+            '(v.current_approval_role = ? and v.current_approval_status = ?
+                and (v.current_approval_sub_role is null or v.current_approval_sub_role = ?))',
+            [$roleName, 'PENDING', $subRoleName],
         ];
     }
 

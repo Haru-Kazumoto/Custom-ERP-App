@@ -7,8 +7,10 @@ import type {
     CustomerOption,
     CompanyOption,
     DeliveryOrderDetailRow,
+    DeliveryOrderDetails,
     DeliveryOrderFormOptions,
     DeliveryOrderItem,
+    DeliveryOrderItemRow,
     DeliveryProduct,
     DeliveryPromo,
     ShippingOption,
@@ -154,13 +156,125 @@ export function finalUnitPrice(item: DeliveryOrderItem): number {
         : round2(item.unit_price);
 }
 
+/**
+ * Dokumen yang akan diedit ulang saat mode `revise`.
+ *
+ * Bentuknya mengikuti `FindDeliveryOrderQuery`: `details` sudah berupa map
+ * dengan kunci dari nama detail (`Delivery Date` → `delivery_date`), dan
+ * `items` dari `GetDeliveryOrderItemsQuery`.
+ */
+export interface ReviseSource {
+    id: number;
+    transaction_code: string;
+    description: string | null;
+    details: DeliveryOrderDetails;
+    items: DeliveryOrderItemRow[];
+}
+
+/**
+ * Isi form dari dokumen yang direvisi.
+ *
+ * Tiga hal yang tidak bisa dibaca langsung dari `details` dan harus dipetakan
+ * lewat opsi form, karena dokumen menyimpan identitas dalam bentuk label:
+ * gudang sebagai kode perusahaan, pengiriman dan pelanggan sebagai nama.
+ * Opsi itulah yang dulu dipakai mengisi detailnya, jadi pemetaan baliknya
+ * deterministik; kalau ada nama yang sudah berubah di database, select-nya
+ * kosong dan form meminta user memilih ulang (validasi `required` menolak
+ * submit selama kosong) — bukan diam-diam memakai id yang salah.
+ *
+ * Barang dipulihkan dari angka yang tersimpan, bukan dihitung ulang:
+ * `unit_price` diisi harga bruto sebelum promo (`unit_price_before`) supaya
+ * preview cascading dari `promo` menghasilkan kembali total yang pernah
+ * disetujui. Snapshot promo ikut dikirim server; kalau konfigurasinya sudah
+ * hilang dari database, baris jatuh ke harga akhir tanpa diskon supaya total
+ * yang ditampilkan tetap sama dengan tersimpan (server tetap menentukan
+ * harga sebenarnya saat submit).
+ */
+function hydrateDeliveryOrder(
+    form: DeliveryOrderFormData,
+    source: ReviseSource,
+    options: DeliveryOrderFormOptions,
+): void {
+    const details = source.details ?? {};
+
+    form.document_code = source.transaction_code;
+    form.delivery_date = details.delivery_date
+        ? String(details.delivery_date).slice(0, 10)
+        : null;
+    form.description = source.description ?? "";
+    form.segment = details.segment || "ALL_SEGMENT";
+
+    const company = options.companies.find(
+        (c) => c.code === details.company,
+    );
+    const shipping = options.shippings.find((s) => s.name === details.delivery);
+    const sub = shipping?.subs.find((s) => s.name === details.sub_delivery);
+    const customer = options.customers.find(
+        (c) => c.name === details.customer,
+    );
+
+    form.company_id = company ? String(company.id) : null;
+    form.shipping_id = shipping ? String(shipping.id) : null;
+    form.sub_shipping_id = sub ? String(sub.id) : null;
+    form.customer_id = customer ? String(customer.id) : null;
+
+    form.customer_po_number = details.nomor_po_pelanggan ?? "";
+    form.cashback_pph_4 =
+        details.cashback_pph_4 !== null && details.cashback_pph_4 !== undefined && details.cashback_pph_4 !== ""
+            ? Number(details.cashback_pph_4)
+            : null;
+    form.biaya_bongkar =
+        details.biaya_bongkar !== null && details.biaya_bongkar !== undefined && details.biaya_bongkar !== ""
+            ? Number(details.biaya_bongkar)
+            : null;
+    form.syarat_pembayaran = details.syarat_pembayaran
+        ? String(details.syarat_pembayaran)
+              .split(", ")
+              .map((value) => value.trim())
+              .filter((value) => value !== "")
+        : [];
+
+    form.transaction_items = (source.items ?? []).map((row) => {
+        const promo = row.promo ?? null;
+        const hasPromo = promo !== null && row.unit_price_before !== null;
+
+        return {
+            product_id: row.product_id,
+            quantity: Number(row.quantity),
+            unit_price: round2(
+                Number(hasPromo ? row.unit_price_before : row.unit_price),
+            ),
+            use_manual_price: Boolean(row.use_manual_price),
+            promo,
+            product: {
+                code: row.product_code ?? "",
+                unit: row.product_unit ?? "",
+                name: row.product_name ?? "",
+            },
+            catalog_price: round2(Number(row.unit_price)),
+            stock: null,
+        };
+    });
+}
+
 export function useDeliveryOrder({
     doNumber,
     options,
+    mode = "create",
+    initial = null,
 }: {
     doNumber: string;
     options: DeliveryOrderFormOptions;
+    /**
+     * `revise` mengisi form dari dokumen yang ada (`/delivery-order/{id}/revise`);
+     * `create` mengisi form kosong.
+     */
+    mode?: "create" | "revise";
+    /** Wajib diisi saat `mode === "revise"`. */
+    initial?: ReviseSource | null;
 }) {
+    const isRevise = mode === "revise";
+
     const form = useForm<DeliveryOrderFormData>({
         document_code: doNumber,
         delivery_date: null as string | null,
@@ -178,9 +292,25 @@ export function useDeliveryOrder({
         transaction_items: [] as DeliveryOrderItem[],
     });
 
+    // Diisi sebelum watcher di bawah terdaftar: nilai yang sudah terisi saat
+    // watcher dibuat tidak memicu callbacknya, jadi segmen hasil pilihan user
+    // tidak tertimpa default segmen pelanggan dan tidak ada request pencarian
+    // barang yang terpicu saat form revisi dibuka.
+    if (isRevise && initial) {
+        hydrateDeliveryOrder(form, initial, options);
+    }
+
     // Bukan field POST langsung: dikodekan ke `transaction_details`
     // (USE_TAX / USE_MANUAL_PRICE) — satu sumber kebenaran seperti DTO server.
     const useTax = ref(true);
+
+    // Dokumen revisi memakai status PPN yang sama seperti saat dibuat. Tanpa
+    // ini `buildTransactionDetails()` menulis ulang `USE_TAX` ke default
+    // `true` saat submit, dan total berubah diam-diam walau user tidak
+    // menyentuh kolom PPN.
+    if (isRevise && initial) {
+        useTax.value = String(initial.details?.ppn ?? "true") !== "false";
+    }
 
     // ---- referensi terpilih ----
     // Nilai form berupa string (String(id)), sementara id opsi number —
@@ -333,7 +463,7 @@ export function useDeliveryOrder({
         const quantity = Number(draft.value.quantity || 0);
         if (quantity < 1) return "Jumlah harus diisi.";
 
-        // Harga wajib ada di kedua mode: jual (otomatis) dan batas atas
+        // Harga wajib ada di kedua mode: jual (otomatis) dan lantai
         // (manual) — tanpa harga daftar tidak ada angka acuan sama sekali.
         if (!product.has_price) {
             return `Harga "${product.name}" tidak tersedia untuk pengiriman/segmen ini.`;
@@ -343,8 +473,8 @@ export function useDeliveryOrder({
             if (!(Number(draft.value.unit_price) > 0)) {
                 return `Harga manual untuk produk "${product.name}" belum diisi.`;
             }
-            if (Number(draft.value.unit_price) > Number(product.price)) {
-                return `Harga manual untuk produk "${product.name}" melebihi harga daftar (maksimal ${formatRupiah(Number(product.price))}).`;
+            if (Number(draft.value.unit_price) < Number(product.price)) {
+                return `Harga manual untuk produk "${product.name}" di bawah harga daftar (minimal ${formatRupiah(Number(product.price))}).`;
             }
         }
 
@@ -376,7 +506,7 @@ export function useDeliveryOrder({
         draft.value.promo_product_id = null;
         draft.value.use_manual_price = false;
         // Harga awal (A): harga katalog di mode otomatis, dan tetap jadi
-        // default yang bisa diedit (turun saja) di mode manual.
+        // default yang bisa diedit (naik saja) di mode manual.
         draft.value.unit_price = product ? product.price : null;
     });
 
@@ -634,6 +764,7 @@ export function useDeliveryOrder({
     return {
         form,
         useTax,
+        isRevise,
         options,
         selectedShipping,
         selectedSub,

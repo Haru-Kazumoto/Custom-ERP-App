@@ -127,7 +127,11 @@ function onKeydown(event: KeyboardEvent) {
                 <p class="text-sm text-slate-600">
                     Giliran Anda sebagai
                     <span class="font-semibold text-slate-800">
-                        {{ context.current?.role ?? "—" }}
+                        {{ context.current?.role ?? "—" }}<template
+                            v-if="context.current?.sub_role"
+                        >
+                            – {{ context.current.sub_role }}</template
+                        >
                     </span>
                     untuk Tahap {{ context.current?.order }}.
                 </p>
@@ -203,7 +207,10 @@ function onKeydown(event: KeyboardEvent) {
                 <template v-else>
                     Menunggu keputusan
                     <span class="font-semibold text-slate-700">
-                        {{ context.current?.role ?? "role lain" }}
+                        {{ context.current?.role ?? "role lain"
+                        }}<template v-if="context.current?.sub_role">
+                            – {{ context.current.sub_role }}</template
+                        >
                     </span>
                     di Tahap {{ context.current?.order }}.
                 </template>

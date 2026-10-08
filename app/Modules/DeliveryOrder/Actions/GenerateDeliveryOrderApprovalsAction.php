@@ -9,8 +9,14 @@ class GenerateDeliveryOrderApprovalsAction
     public function __construct(private DeliveryOrderRepository $repository)
     {}
 
-    public function execute(int $delivery_order_id): void
+    /**
+     * @param  int  $creator_id  Pembuat dokumen (`transactions.created_by`);
+     *                            menentukan rantai approval sales lewat
+     *                            sub-role dan hierarki `sub_roles.parent_id`.
+     * @param  bool  $needs_bd_approval  Ada baris harga/diskon manual di form.
+     */
+    public function execute(int $delivery_order_id, int $creator_id, bool $needs_bd_approval): void
     {
-        $this->repository->generateApprovals($delivery_order_id);
+        $this->repository->generateApprovals($delivery_order_id, $creator_id, $needs_bd_approval);
     }
 }

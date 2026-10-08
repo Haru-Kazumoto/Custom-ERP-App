@@ -46,7 +46,7 @@ const props = defineProps<{
     error: string | null;
     /**
      * Mode harga draft ini: false = harga daftar (otomatis), true = manual
-     * (dibatasi tidak boleh melebihi harga daftar).
+     * (dibatasi tidak boleh turun dari harga daftar).
      */
     useManual: boolean;
     showStock: boolean;
@@ -90,8 +90,8 @@ const canAdd = computed(
         !!props.selectedId && !!props.quantity && props.error === null,
 );
 
-/** Harga daftar (batas atas mode manual). */
-const priceCap = computed(() =>
+/** Harga daftar (batas bawah mode manual). */
+const priceFloor = computed(() =>
     props.selectedProduct?.has_price
         ? Number(props.selectedProduct.price)
         : null,
@@ -286,8 +286,7 @@ const priceCap = computed(() =>
                         </div>
                         <NInputNumber
                             :value="unitPrice"
-                            :min="0"
-                            :max="useManual ? (priceCap ?? undefined) : undefined"
+                            :min="useManual ? (priceFloor ?? 0) : 0"
                             :show-button="false"
                             :disabled="!useManual"
                             placeholder="0"
@@ -312,7 +311,7 @@ const priceCap = computed(() =>
                         >
                             {{
                                 useManual
-                                    ? `Maksimal ${formatRupiah(priceCap)} — hanya bisa turun dari harga daftar.`
+                                    ? `Minimal ${formatRupiah(priceFloor)} — tidak boleh turun dari harga daftar.`
                                     : "Otomatis dari daftar harga sesuai segmen."
                             }}
                         </p>

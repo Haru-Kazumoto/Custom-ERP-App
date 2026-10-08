@@ -3,6 +3,7 @@
 namespace App\Modules\Dashboard\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Modules\Dashboard\Queries\GetArControllerDashboardDataQuery;
 use App\Modules\Dashboard\Queries\GetSalesDashboardDataQuery;
 use App\Modules\Dashboard\Queries\GetWarehouseDashboardDataQuery;
 use App\Modules\Finance\Controllers\FinanceDashboardController;
@@ -19,7 +20,8 @@ class DashboardController extends Controller
     public function __construct(
         private GetTenLatestPurchaseOrderQueries $get_latest_purchase_orders,
         private GetSalesDashboardDataQuery $sales_dashboard_data,
-        private GetWarehouseDashboardDataQuery $warehouse_dashboard_data
+        private GetWarehouseDashboardDataQuery $warehouse_dashboard_data,
+        private GetArControllerDashboardDataQuery $ar_controller_dashboard_data
     ) {}
 
     private function renderSalesDashboard(int $userId): Response
@@ -64,9 +66,17 @@ class DashboardController extends Controller
         return Inertia::render('Dashboard/Warehouse', $this->warehouse_dashboard_data->execute());
     }
 
+    /**
+     * Dashboard AR Controller mengontrol piutang, umur invoice yang belum
+     * lunas, dan data customer — semuanya dibaca dari faktur dan pembayaran,
+     * tanpa aksi tulis, jadi cukup satu query seperti dashboard sales/warehouse.
+     */
     private function renderArControllerDashboard(): Response
     {
-        return Inertia::render('Dashboard/ArController');
+        return Inertia::render(
+            'Dashboard/ArController',
+            $this->ar_controller_dashboard_data->execute()
+        );
     }
 
     private function renderDocumentControlDashboard(): Response

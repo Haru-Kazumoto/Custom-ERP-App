@@ -74,8 +74,29 @@ class FindDeliveryOrderQuery
                 strtolower(str_replace(' ', '_', $detail['name'])) => $detail['value'],
             ]);
 
-        $transaction->items = $this->get_items->execute($id);
+        // `transactions` tidak punya kolom pelanggan - identitas pelanggan DO
+        // hanya ada di `transaction_details` sebagai nama. Nama itu diambil
+        // dari `GetDeliveryOrderFormOptionsQuery` (satu-satunya sumber pilihan
+        // pelanggan di form), jadi pencocokan persis aman dipakai di sini.
+        $transaction->items = $this->get_items->execute($id, $this->resolveCustomerId($transaction->details));
 
         return $transaction;
+    }
+
+    /**
+     * Id pelanggan dari nama yang tersimpan di detail; null kalau tidak ada
+     * atau namanya sudah tidak ada di tabel `customers`.
+     */
+    private function resolveCustomerId(\Illuminate\Support\Collection $details): ?int
+    {
+        $name = trim((string) $details->get('customer', ''));
+
+        if ($name === '') {
+            return null;
+        }
+
+        $customer_id = DB::table('customers')->where('name', $name)->value('id');
+
+        return $customer_id === null ? null : (int) $customer_id;
     }
 }

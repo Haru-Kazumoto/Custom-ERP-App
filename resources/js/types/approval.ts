@@ -82,6 +82,8 @@ export interface ApprovalDecisionContext {
         order: number;
         role_id: number;
         role: string | null;
+        /** Sub-role tujuan langkah (rantai sales, marketing DNP/DKU); null = terbuka untuk seluruh role. */
+        sub_role: string | null;
         status: string;
         description: string | null;
         proceed_by: string | null;
@@ -90,6 +92,7 @@ export interface ApprovalDecisionContext {
     current: {
         order: number;
         role: string | null;
+        sub_role: string | null;
         status: string;
     } | null;
     can_decide: boolean;

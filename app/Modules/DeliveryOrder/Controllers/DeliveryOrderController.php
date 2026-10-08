@@ -4,8 +4,11 @@ namespace App\Modules\DeliveryOrder\Controllers;
 
 use App\Enum\TransactionType;
 use App\Http\Controllers\Controller;
+use App\Modules\Approval\DTOs\DecideApprovalDTO;
 use App\Modules\Approval\Queries\GetApprovalDecisionContextQuery;
+use App\Modules\DeliveryOrder\Actions\ReviseDeliveryOrderAction;
 use App\Modules\DeliveryOrder\DTOs\CreateDeliveryOrderDTO;
+use App\Modules\DeliveryOrder\DTOs\ReviseDeliveryOrderDTO;
 use App\Modules\DeliveryOrder\Queries\FindDeliveryOrderQuery;
 use App\Modules\DeliveryOrder\Queries\GetDeliveryOrderApprovalsQuery;
 use App\Modules\DeliveryOrder\Queries\GetDeliveryOrderFormOptionsQuery;
@@ -16,6 +19,7 @@ use App\Modules\Roles\Queries\GetOneRoleFromUserQuery;
 use App\Utils\GenerateDocumentNumber;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -52,6 +56,24 @@ class DeliveryOrderController extends Controller
         return Inertia::render('DeliveryOrder/Create', [
             'do_number' => GenerateDocumentNumber::generate(TransactionType::DeliveryOrder),
             'options' => $options->execute(),
+        ]);
+    }
+
+    /**
+     * Daftar DO yang dikembalikan approver untuk diperbaiki.
+     *
+     * Tanpa `statusOptions`: filter-nya dikunci ke `NEED_REVISION` di bawah,
+     * jadi menampilkan pilihan status lain hanya akan mengembalikan dokumen
+     * yang tidak bisa direvisi.
+     */
+    public function indexRevisions(Request $request, GetDeliveryOrdersQuery $delivery_orders)
+    {
+        return Inertia::render('DeliveryOrder/IndexRevisions', [
+            'deliveryOrders' => $delivery_orders->execute([
+                'search' => $request->query('search'),
+                'status' => DecideApprovalDTO::STATUS_NEED_REVISION,
+            ]),
+            'filters' => $request->only(['search']),
         ]);
     }
 
@@ -113,7 +135,7 @@ class DeliveryOrderController extends Controller
             'transaction_items.*.quantity' => ['required', 'integer', 'min:1'],
             // Mode harga berlaku per barang. Harga manual divalidasi lebih
             // longgar di sini (cukup numerik); pembatasan "tidak boleh lebih
-            // tinggi dari harga daftar" ditegakkan `DeliveryOrderCalculator`
+            // rendah dari harga daftar" ditegakkan `DeliveryOrderCalculator`
             // terhadap harga `product_prices` milik segmen terpilih.
             'transaction_items.*.use_manual_price' => ['sometimes', 'boolean'],
             'transaction_items.*.unit_price' => [
@@ -164,6 +186,22 @@ class DeliveryOrderController extends Controller
         }
     }
 
+    /**
+     * Syarat langkah Business Development di rantai approval — persis
+     * kondisi legacy `storeCustomerOrderApproval`: ada baris dengan diskon
+     * manual (`manual_discount_type`) ATAU harga manual (`use_manual_price`).
+     *
+     * Form DO sekarang belum mengirim `manual_discount_type`, tapi ceknya
+     * tetap dipertahankan supaya form yang menambah kolom itu nanti otomatis
+     * menyalakan approval BD tanpa mengubah kode di sini.
+     */
+    private function needsBdApproval(Request $request): bool
+    {
+        return collect($request->input('transaction_items', []))
+            ->contains(fn ($item) => ! empty($item['manual_discount_type'] ?? null)
+                || ! empty($item['use_manual_price'] ?? null));
+    }
+
     public function store(Request $request, CreateDeliveryOrderWorkflow $workflow)
     {
         $this->normalizeIds($request);
@@ -183,12 +221,16 @@ class DeliveryOrderController extends Controller
         $due_date = date('Y-m-d', strtotime($delivery_date . " +{$payment_term} days"));
 
         try {
-            $workflow->execute(CreateDeliveryOrderDTO::fromRequest(
-                $request,
-                $payment_term,
-                $due_date,
-                strtoupper(trim((string) $request->input('segment'))),
-            ));
+            $workflow->execute(
+                CreateDeliveryOrderDTO::fromRequest(
+                    $request,
+                    $payment_term,
+                    $due_date,
+                    strtoupper(trim((string) $request->input('segment'))),
+                ),
+                (int) $request->user()->id,
+                $this->needsBdApproval($request),
+            );
         } catch (RuntimeException $exception) {
             // Harga hilang, promo tidak eligible, atau stok kurang: pesannya
             // memang untuk pengguna, jadi dikembalikan sebagai error form
@@ -198,6 +240,103 @@ class DeliveryOrderController extends Controller
 
         return redirect(route('delivery-order.index'))
             ->with('success', 'Delivery order berhasil dibuat!');
+    }
+
+    /**
+     * Aturan revisi: seluruh aturan `store` kecuali `document_code`.
+     *
+     * Nomor DO tidak boleh berubah, jadi tidak ikut divalidasi (nilai lama
+     * dikirim ulang oleh form dan `ReviseDeliveryOrderDTO` membuangnya) —
+     * memvalidasinya berarti `Rule::unique` menolak nomor dokumen itu
+     * sendiri.
+     *
+     * @return array<string, array<int, mixed>>
+     */
+    private function reviseRules(Request $request): array
+    {
+        return Arr::except($this->rules($request), ['document_code']);
+    }
+
+    /**
+     * Form revisi untuk satu DO.
+     *
+     * `do_number` diisi dari dokumen yang direvisi, bukan
+     * `GenerateDocumentNumber`: nomor itu harus tetap sama, jadi generate
+     * angka baru hanya akan menampilkan nomor yang salah di layar.
+     */
+    public function revise(
+        Request $request,
+        int $id,
+        FindDeliveryOrderQuery $query,
+        GetDeliveryOrderFormOptionsQuery $options,
+    ): Response {
+        $delivery_order = $query->execute($id);
+
+        abort_if(
+            $delivery_order === null
+                || $delivery_order->transaction_type !== TransactionType::DeliveryOrder->value,
+            404,
+            'Delivery order tidak ditemukan.',
+        );
+
+        // Form revisi hanya boleh dibuka pembuat dokumen.
+        // `ReviseDeliveryOrderAction` sudah menegakkan ini saat submit, tapi
+        // tanpa guard di sini user lain bisa membuka form milik orang lain
+        // dan baru gagal setelah mengisi semuanya.
+        abort_unless(
+            (int) $delivery_order->created_by === (int) $request->user()->id,
+            403,
+            'Hanya pembuat dokumen yang dapat merevisi delivery order ini.',
+        );
+
+        return Inertia::render('DeliveryOrder/Create', [
+            'do_number' => $delivery_order->transaction_code,
+            'deliveryOrder' => $delivery_order,
+            'options' => $options->execute(),
+        ]);
+    }
+
+    public function updateRevision(
+        Request $request,
+        int $id,
+        ReviseDeliveryOrderAction $revise_delivery_order,
+    ) {
+        $this->normalizeIds($request);
+
+        $request->validate($this->reviseRules($request));
+
+        // Termin & jatuh tempo dihitung ulang dari pelanggan di database,
+        // sama seperti `store()` — angka lama tidak dipakai ulang karena
+        // pelanggan bisa saja sudah berganti termin sejak dokumen dibuat.
+        $customer = DB::table('customers')
+            ->where('id', (int) $request->input('customer_id'))
+            ->first(['term_payment']);
+
+        $payment_term = (int) ($customer->term_payment ?? 0);
+        $delivery_date = substr((string) $request->input('delivery_date'), 0, 10);
+        $due_date = date('Y-m-d', strtotime($delivery_date . " +{$payment_term} days"));
+
+        try {
+            $revise_delivery_order->execute(
+                $id,
+                ReviseDeliveryOrderDTO::fromRequest(
+                    $request,
+                    $payment_term,
+                    $due_date,
+                    strtoupper(trim((string) $request->input('segment'))),
+                ),
+                (int) $request->user()->id,
+                $this->needsBdApproval($request),
+            );
+        } catch (RuntimeException $exception) {
+            // Harga hilang, promo tidak eligible, atau stok kurang: pesannya
+            // memang untuk pengguna, jadi dikembalikan sebagai error form
+            // alih-alih error 500.
+            return back()->withErrors(['delivery_order' => $exception->getMessage()]);
+        }
+
+        return redirect(route('delivery-order.show', $id))
+            ->with('success', 'Revisi delivery order tersimpan dan approval dimulai ulang dari awal.');
     }
 
     public function show(
@@ -222,6 +361,9 @@ class DeliveryOrderController extends Controller
                 $id,
                 (int) $roles->execute((int) $request->user()->id)->id,
                 TransactionType::DeliveryOrder->value,
+                $request->user()->sub_role_id !== null
+                    ? (int) $request->user()->sub_role_id
+                    : null,
             ),
         ]);
     }

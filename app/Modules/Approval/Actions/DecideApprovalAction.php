@@ -68,7 +68,7 @@ class DecideApprovalAction
                 ->where('transaction_id', $dto->transaction_id)
                 ->orderBy('order')
                 ->lockForUpdate()
-                ->get(['id', 'order', 'role_id', 'status']);
+                ->get(['id', 'order', 'role_id', 'sub_role_id', 'status']);
 
             if ($approvals->isEmpty()) {
                 throw new RuntimeException('Dokumen ini tidak memiliki alur approval.');
@@ -93,7 +93,18 @@ class DecideApprovalAction
                 throw new RuntimeException('Seluruh langkah approval dokumen ini sudah diproses.');
             }
 
-            if ((int) $current->role_id !== $dto->role_id) {
+            // Langkah dengan sub-role (rantai sales, marketing DNP/DKU) hanya
+            // boleh diputuskan pemilik sub-role itu persis — termasuk user
+            // tanpa sub-role, yang memang tidak punya hak di langkah itu.
+            // Langkah tanpa sub-role tetap terbuka untuk seluruh role-nya,
+            // jadi aturan lama PO tidak berubah. Tanpa cek ini, salesman
+            // bisa menyetujui langkah sales supervisor miliknya sendiri
+            // karena role-nya sama.
+            $subRoleMatches = $current->sub_role_id === null
+                || ($dto->sub_role_id !== null
+                    && (int) $current->sub_role_id === $dto->sub_role_id);
+
+            if ((int) $current->role_id !== $dto->role_id || ! $subRoleMatches) {
                 throw new ApprovalForbiddenException('Dokumen ini sedang menunggu persetujuan role lain.');
             }
 

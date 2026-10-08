@@ -8,6 +8,7 @@ import {
     finalUnitPrice,
     SEGMENT_OPTIONS,
     PAYMENT_TERMS_OPTIONS,
+    type ReviseSource,
 } from "@/composables/useDeliveryOrder";
 import AppLayout from "@/Layouts/AppLayout.vue";
 import HeaderPage from "@/Components/Common/HeaderPage.vue";
@@ -45,12 +46,23 @@ defineOptions({
 const props = defineProps<{
     do_number: string;
     options: DeliveryOrderFormOptions;
+    /**
+     * Hanya dikirim di mode revisi (`/delivery-order/{id}/revise`).
+     *
+     * `undefined` di mode create, dan itu yang membedakan kedua mode di
+     * halaman ini: create tidak punya dokumen untuk diedit, revise punya.
+     */
+    deliveryOrder?: ReviseSource;
     auth: { user: { id: number; name: string } };
 }>();
+
+/** Null di mode create — inilah yang menentukan URL submit dan label tombol. */
+const reviseSource = computed(() => props.deliveryOrder ?? null);
 
 const {
     form,
     useTax,
+    isRevise,
     selectedShipping,
     selectedSub,
     selectedCustomer,
@@ -80,6 +92,8 @@ const {
 } = useDeliveryOrder({
     doNumber: props.do_number,
     options: props.options,
+    mode: props.deliveryOrder ? "revise" : "create",
+    initial: props.deliveryOrder ?? null,
 });
 
 // ---- select options ----
@@ -257,25 +271,29 @@ function handleSubmit() {
     buildTransactionDetails();
 
     Swal.fire({
-        title: "Memproses Delivery Order...",
+        title: isRevise.value
+            ? "Menyimpan revisi Delivery Order..."
+            : "Memproses Delivery Order...",
         text: "Data sedang disimpan",
         didOpen: () => Swal.showLoading(),
     });
 
-    form.post(route("delivery-order.store"), {
+    const submitOptions = {
         preserveScroll: true,
         onSuccess: (page: any) => {
             Swal.close();
             notification.success({
                 title:
                     page.props.flash?.success ??
-                    "Delivery order berhasil dibuat!",
+                    (isRevise.value
+                        ? "Revisi delivery order tersimpan!"
+                        : "Delivery order berhasil dibuat!"),
                 meta: "Data tersimpan",
                 closable: true,
                 duration: 3000,
             });
         },
-        onError: (errors) => {
+        onError: (errors: Record<string, string>) => {
             Swal.close();
             const message =
                 errors.delivery_order ??
@@ -284,11 +302,27 @@ function handleSubmit() {
 
             Swal.fire({
                 icon: "error",
-                title: "Gagal membuat Delivery Order",
+                title: isRevise.value
+                    ? "Gagal menyimpan revisi"
+                    : "Gagal membuat Delivery Order",
                 text: message,
             });
         },
-    });
+    };
+
+    // Revisi memakai nomor DO yang sama, jadi bukan resource baru: `PUT`
+    // ke endpoint revisi dokumen ini. Nomor yang dikirim form tidak pernah
+    // divalidasi maupun dibaca — `ReviseDeliveryOrderDTO` membuangnya.
+    if (isRevise.value && reviseSource.value) {
+        form.put(
+            route("delivery-order.revise.update", reviseSource.value.id),
+            submitOptions,
+        );
+
+        return;
+    }
+
+    form.post(route("delivery-order.store"), submitOptions);
 }
 
 /** Total bruto satu baris (setelah promo) untuk modal konfirmasi. */
@@ -298,13 +332,34 @@ function lineTotal(item: DeliveryOrderItem): number {
 </script>
 
 <template>
-    <Head title="Delivery Order" />
+    <Head
+        :title="isRevise ? 'Revisi Delivery Order' : 'Delivery Order'"
+    />
 
     <div class="flex flex-col gap-5">
         <HeaderPage
-            title="Delivery Order"
-            subTitle="Pembuatan Delivery Order Baru"
+            :title="isRevise ? 'Revisi Delivery Order' : 'Delivery Order'"
+            :subTitle="
+                isRevise
+                    ? `Perbaiki ${form.document_code} lalu kirim ulang untuk diapprove`
+                    : 'Pembuatan Delivery Order Baru'
+            "
         />
+
+        <!--
+            Mode revisi: nomor DO tidak boleh berubah, jadi tidak ada input
+            nomor sama sekali - hanya penegasan bahwa nomor di layar adalah
+            nomor dokumen yang sama selamanya.
+        -->
+        <div
+            v-if="isRevise"
+            class="rounded-2xl border border-violet-100 bg-violet-50/60 px-4 py-3 text-sm text-violet-800"
+        >
+            Nomor DO tetap
+            <span class="font-semibold">{{ form.document_code }}</span>. Nominal
+            dihitung ulang di server, keputusan lama diarsipkan, dan approval
+            dimulai ulang dari awal.
+        </div>
 
         <!-- ===== Info utama ===== -->
         <NCard
@@ -701,9 +756,11 @@ function lineTotal(item: DeliveryOrderItem): number {
     >
         <template #header>
             <div class="flex flex-col">
-                <span class="text-base font-semibold text-slate-800"
-                    >Konfirmasi Delivery Order</span
-                >
+                <span class="text-base font-semibold text-slate-800">{{
+                    isRevise
+                        ? "Konfirmasi Revisi Delivery Order"
+                        : "Konfirmasi Delivery Order"
+                }}</span>
                 <span class="text-sm font-normal text-slate-400">{{
                     form.document_code
                 }}</span>
@@ -983,7 +1040,7 @@ function lineTotal(item: DeliveryOrderItem): number {
                     <template #icon>
                         <NIcon :component="Plus" />
                     </template>
-                    Simpan Delivery Order
+                    {{ isRevise ? "Simpan Revisi" : "Simpan Delivery Order" }}
                 </NButton>
             </div>
         </template>
